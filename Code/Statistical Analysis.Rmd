@@ -1,0 +1,1261 @@
+---
+title: "Statistical Analysis"
+author: "Emilee Lance"
+date: "2024-07-30"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Load Libraries
+```{r}
+library(phyloseq)
+library(vegan)
+library(ggplot2)
+library(dplyr)
+library(MASS)
+library(microViz)
+library(multcomp)
+library(emmeans)
+library(FSA)
+library(tibble)
+library(bestNormalize)
+library(kableExtra)
+library(stringr)
+```
+# Create Functions
+```{r}
+get_formula <- function(model) {
+  
+  broom::tidy(model)[, 1:2] %>%
+    mutate(sign = ifelse(sign(estimate) == 1, ' + ', ' - ')) %>% #coeff signs
+    mutate_if(is.numeric, ~ abs(round(., 2))) %>% #for improving formatting
+    mutate(a = ifelse(term == '(Intercept)', paste0('y ~ ', estimate), paste0(sign, estimate, ' * ', term))) %>%
+    summarise(formula = paste(a, collapse = '')) %>%
+    as.character
+  
+}
+```
+# Load the Phyloseq object
+The phyloseq object was created by following the DADA2 workflow. Documentation can be found here: ./Code/Analysis/Zebrafish DADA2.Rmd. Phyloseq object saved here: ./Data/ps_object.rds. For this workflow we will be looking only at the Control samples for all 4 strains of zebrafish (5D, AB, Casper & TU).
+```{r phyloseq object, tidy = TRUE}
+ps <- readRDS("C:/Users/emile/OneDrive - Oregon State University/Sharpton Lab/ZF_ISF__Emiliee_WI2024/Data/ps_object.rds")
+```
+#Extract Sample Data
+# Extract Relevant Data
+```{r data extraction, tidy = TRUE}
+#extract relevant data
+#calculate alpha diversity metrics
+sam_data <- as.data.frame(ps %>%
+ ps_calc_diversity(rank = "Genus", index = "shannon") %>%
+ ps_calc_richness(rank = "Genus", index = "observed") %>%
+ samdat_tbl())
+
+sam_data <- column_to_rownames(sam_data, var = colnames(sam_data)[1])
+```
+
+
+# Extract Relevant Data and Perform Transformations
+```{r data extraction, tidy = TRUE}
+#convert Strain to factor
+sam_data$Strain <- as.factor(sam_data$Strain)
+#add binomial pathology results
+sam_data$Pathology.Results.b <- ifelse(sam_data$Pathology.Results == "positive", 1, 0)
+#normality for weight
+#bestNormalize(sam_data$Weight_mg) #no normalization
+#normality for shannon diversity
+#test for normality
+shapiro_test <- shapiro.test(sam_data$shannon_Genus)
+alpha <- 0.05
+# Print the results of the Shapiro-Wilk test
+print(shapiro_test)
+if (shapiro_test$p.value > alpha) {
+        print("Sample looks Gaussian/Normally Distributed (fail to reject H0)")
+    } else {
+        print("Sample does not look Gaussian/Normally Distributed (reject H0)")
+    }
+bestNormalize(sam_data$shannon_Genus) 
+#perform arcsinh transformation
+sam_data$arcsinh_shannon_Genus <- asinh(sam_data$shannon_Genus)
+
+#normality for observed counts
+shapiro_test <- shapiro.test(sam_data$observed_Genus)
+alpha <- 0.05
+# Print the results of the Shapiro-Wilk test
+print(shapiro_test)
+if (shapiro_test$p.value > alpha) {
+        print("Sample looks Gaussian/Normally Distributed (fail to reject H0)")
+    } else {
+        print("Sample does not look Gaussian/Normally Distributed (reject H0)")
+    }
+# determine best normalization method
+bestNormalize(sam_data$observed_Genus) #square root
+#perform transformation
+sam_data$sqrt_observed_Genus <- sqrt(sam_data$observed_Genus)
+#subset
+control_data <- subset(sam_data, Treatment == "Control")
+exposed_data <- subset(sam_data, Treatment == "Exposed")
+```
+
+
+
+# Model Selection
+## Physiology
+Variables to consider: Strain, Sex, and Pathology.Results.
+```{r}
+#create full model for selection
+full_phys_lm <- lm(Weight_mg ~ Strain + Sex + Pathology.Results +Strain*Sex +Strain*Pathology.Results +Sex*Pathology.Results, data = sam_data)
+#perform model selection
+step(full_phys_lm, direction = "both")
+#create new model based on selection results
+best_phys_lm <- lm(formula = Weight_mg ~ Strain + Sex + Pathology.Results +Strain*Sex, data = sam_data)
+#run analysis of variance
+anova(best_phys_lm)
+#summary statistics
+summary(best_phys_lm)
+```
+## Alpha Diversity
+Variables to consider: Strain, Treatment, DPE, Sex, Weight_mg, Pathology.Result, and Total.Worm.Count.
+```{r}
+#create shannon diversity full model for selection
+full_lm <- lm(arcsinh_shannon_Genus ~ Strain + Treatment + DPE + Sex + Weight_mg + Pathology.Results + Total.Worm.Count + Strain*Treatment + Strain*DPE + Treatment* DPE + Strain*Treatment*DPE, data = sam_data)
+#perform model selection
+step(full_lm, direction = "both", scope = list(lower = arcsinh_shannon_Genus ~ Strain + Treatment, upper = full_lm))
+#create new model based on selection results
+shannon_lm <- lm(formula = shannon_Genus ~ Strain + Treatment + DPE + Weight_mg + Treatment:DPE, data = sam_data)
+#run analysis of variance
+anova(shannon_lm)
+#summary statistics
+summary(shannon_lm)
+
+# Simple GLM for Strain in each treatment group
+shannon_control_lm <- lm(formula = shannon_Genus ~ Strain, data = control_data)
+shannon_exposed_lm <- lm(formula = shannon_Genus ~ Strain, data = exposed_data)
+
+#create observed richness full model for selection
+full_lm <- lm(sqrt_observed_Genus ~ Strain + Treatment + DPE + Sex + Weight_mg + Pathology.Results + Total.Worm.Count + Strain*Treatment + Strain*DPE + Treatment* DPE + Strain*Treatment*DPE, data = sam_data)
+#perform model selection
+step(full_lm, direction = "both", scope = list(lower = sqrt_observed_Genus ~ Strain + Treatment, upper = full_lm))
+#create new model based on selection results
+observed_lm <- lm(formula = sqrt_observed_Genus ~ Strain + Treatment + DPE + 
+    Weight_mg + Total.Worm.Count + Strain:Treatment + Strain:DPE + 
+    Treatment:DPE, data = sam_data)
+#run analysis of variance
+anova(observed_lm)
+#summary statistics
+summary(observed_lm)
+
+
+# Simple GLM for Strain in each treatment group
+observed_control_lm <- lm(formula = observed_Genus ~ Strain, data = control_data)
+observed_exposed_lm <- lm(formula = observed_Genus ~ Strain, data = exposed_data)
+```
+
+## Beta Diversity
+Variables to consider: Strain, Treatment, DPE, Sex, Weight_mg, Pathology.Result, and Total.Worm.Count.
+```{r}
+#extract the OTU table
+otu_table <- otu_table(ps)
+#convert OTU table to matrix
+otu_matrix <- as(otu_table, "matrix")
+#calculate Bray-Curtis dissimilarity matrix
+dist_matrix <- vegdist(otu_matrix, method = "bray")
+#create full model for selection
+full_cap <- capscale(dist_matrix ~ Strain + Treatment + DPE + Sex + Weight_mg + Pathology.Results + Total.Worm.Count + Strain*Treatment + Strain*DPE + Treatment* DPE + Strain*Treatment*DPE, data = sam_data)
+#perform stepwise selection
+ordistep(full_cap, direction = "both")
+#create new model based on model selection results
+best_cap <- capscale(dist_matrix ~ Strain + Treatment + DPE + Total.Worm.Count + Strain:Treatment + Strain:DPE +
+Treatment:DPE, data = sam_data)
+#run adonis2
+adonis2(dist_matrix ~ Strain + Treatment + DPE + Total.Worm.Count + Strain:Treatment + Strain:DPE + Treatment:DPE, data = sam_data)
+#proportion of variance explained
+best_cap$CA$eig / sum(best_cap$CA$eig)
+
+```
+# Physiology
+```{r}
+#Weight by treatment
+wilcox.test(Weight_mg ~ Treatment, data =sam_data)
+#Weight by pathology results
+wilcox.test(Weight_mg ~Pathology.Results, data =sam_data)
+
+#Weight for control
+kruskal.test(Weight_mg ~ Strain, data = control_data)
+control_dunn_result <- dunnTest(Weight_mg ~ Strain, data = control_data, method = "bonferroni")
+print(control_dunn_result)
+
+#Weight for exposed
+kruskal.test(Weight_mg ~ Strain, data = exposed_data)
+exposed_dunn_result <- dunnTest(Weight_mg ~ Strain, data = exposed_data, method = "bonferroni")
+print(exposed_dunn_result)
+
+#Weight by sex
+wilcox.test(Weight_mg ~ Sex, data =sam_data)
+#Weight by dpe
+wilcox.test(Weight_mg ~ DPE, data =sam_data)
+
+#Weight by dpe in exposed
+wilcox.test(Weight_mg ~ DPE, data =exposed_data)
+#Weight by dpe in control
+wilcox.test(Weight_mg ~ DPE, data =control_data)
+#Models
+# Create Summary Table for best model
+phys_table <- anova(best_phys_lm) %>%
+  kbl(
+    caption = "Weight ~ Intercept + Strain + Sex + Pathology.Results +Strain*Sex",
+    digits = 3,
+    align = "c",
+    col.names = c("Df", "Sum Sq", "Mean Sq", "F value", "Pr(>F)")
+  ) %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria") %>%
+  row_spec(0, bold = TRUE, background = "white") %>%
+  kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
+column_spec(1:5, width = "100px")
+
+anova(lm(Weight_mg ~ Strain + Pathology.Results + Strain*Pathology.Results, data = sam_data))
+
+anova(lm(Weight_mg ~ Strain + Treatment + Strain*Treatment, data = sam_data))
+
+anova(lm(Weight_mg ~ Strain + Pathology.Results + Sex, data = sam_data))
+
+
+lm(Weight_mg ~ Strain + Pathology.Results + Strain*Pathology.Results, data = sam_data) %>%
+  aov() %>%
+  TukeyHSD()
+
+#Tukey Test for Best Physiology Model
+phys_tukey <- best_phys_lm %>%
+  aov() %>%
+  TukeyHSD()
+
+phys_strain_pval_df <- phys_tukey_df %>%
+ filter(term == "Strain") %>%
+ rename(p.adj = `p adj`) %>% # Rename the column to avoid issues
+ separate(comparison, into = c("group1", "group2"), sep = "-") %>%
+mutate(
+y.position = max(sam_data$shannon_Genus, na.rm = TRUE) + seq(0.1, 0.5, length.out = n()),
+ p.label = case_when(
+ p.adj <= 0.001 ~ "***",
+ p.adj <= 0.01 ~ "**",
+ p.adj <= 0.05 ~ "*",
+ p.adj <= 0.1 ~ ".",
+ TRUE ~ "ns"
+ )
+)
+
+phys_strain_tukey_table <- phys_strain_pval_df %>%
+  kbl(
+    caption = "Post-Hoc Tukey Test for Zebrafish Weight by Strain",
+    digits = 3,
+    align = "c",
+    col.names = c(" ", "lwr", "upr", "diff", "p.adj", "group1", "group2", "term", "y.position", "p.label")
+  ) %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria") %>%
+  row_spec(0, bold = TRUE, background = "white") %>%
+  kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
+column_spec(1:5, width = "100px")
+
+#Pathology
+#infection prevalence
+prevalence_results <- sam_data %>%
+  filter(Treatment == "Exposed") %>%
+  group_by(Strain) %>%
+  summarise(
+    Total_Exposed = n(),
+    Positive_Count = sum(Pathology.Results == "positive"),
+    Percent_Positive = (Positive_Count / Total_Exposed) * 100
+  )
+
+View(prevalence_results)
+
+prevalence_table <- prevalence_results %>%
+  kbl(
+    caption = "Infection Prevalence by Strain",
+    digits = 2,
+    align = "c",
+    col.names = c("Strain", "Total Exposed", "Positive Count", "Positive Percent")) %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria") %>%
+  row_spec(0, bold = TRUE, background = "white") %>%
+  kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
+column_spec(1:4, width = "100px")
+
+#by strain
+sam_data$Strain <- relevel(sam_data$Strain, ref = "AB")
+pathology_model <- lm(Pathology.Results.b ~ Strain, data = exposed_data, family = binomial())
+summary(pathology_model)
+anova(pathology_model)
+posthoc <- glht(pathology_model, linfct = mcp(Strain = "Tukey"))
+summary(posthoc)
+#now by sex
+pathology_model <- lm(Pathology.Results.b ~ Sex, data = exposed_data, family = binomial())
+summary(pathology_model)
+anova(pathology_model)
+# and both
+pathology_model <- lm(Pathology.Results.b ~ Strain + Sex, data = exposed_data, family = binomial())
+
+# Create Summary Table for pathology model
+pathology_table <- anova(pathology_model) %>%
+  kbl(
+    caption = "Pathology Outcomes ~ Intercept + Strain + Sex",
+    digits = 3,
+    align = "c",
+    col.names = c("Df", "Sum Sq", "Mean Sq", "F value", "Pr(>F)")
+  ) %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria") %>%
+  row_spec(0, bold = TRUE, background = "white") %>%
+  kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
+column_spec(1:5, width = "100px")
+
+
+#Worm Count
+# with 5D as reference
+exposed_data$Strain<- relevel(exposed_data$Strain, ref = "5D")
+glm.nb(Total.Worm.Count ~ Strain + DPE, data = exposed_data) %>%
+     emmeans(pairwise ~ Strain) %>%
+     pairs(adjust = "tukey") %>%
+     summary()
+
+# with AB as reference
+exposed_data$Strain<- relevel(exposed_data$Strain, ref = "AB")
+glm.nb(Total.Worm.Count ~ Strain+ DPE, data = exposed_data) %>%
+ summary()
+
+# with Casper as reference
+exposed_data$Strain<- relevel(exposed_data$Strain, ref = "Casper")
+glm.nb(Total.Worm.Count ~ Strain+ DPE, data = exposed_data) %>%
+ summary()
+
+# with TU as reference
+exposed_data$Strain<- relevel(exposed_data$Strain, ref = "TU")
+glm.nb(Total.Worm.Count ~ Strain+ DPE, data = exposed_data) %>%
+ summary()
+
+burden_lm <- glm.nb(Total.Worm.Count ~ Strain+ DPE, data = exposed_data)
+
+#Tukey test
+burden_anova <- glm.nb(Total.Worm.Count ~ Strain + DPE, data = exposed_data) %>%
+  anova()
+glm.nb(Total.Worm.Count ~ Strain + DPE, data = exposed_data) %>%
+  summary()
+glm.nb(Total.Worm.Count ~ Strain + DPE, data = exposed_data) %>%
+  aov() %>%
+  TukeyHSD()
+
+dpe_pval <- burden_anova["DPE", "Pr(>Chi)"]
+
+
+
+
+# Extract and combine all comparisons
+burden_anova_df <- do.call(rbind, lapply(names(burden_anova), function(term) {
+df <- as.data.frame(burden_anova[[term]])
+df$comparison <- rownames(df)
+df$term <- term
+df
+}))
+
+# Tukey test
+burden_tukey <- burden_lm %>%
+  aov() %>%
+  TukeyHSD()
+
+burden_strain_pval_df <- burden_tukey_df %>%
+ filter(term == "Strain") %>%
+ rename(p.adj = `p adj`) %>% # Rename the column to avoid issues
+ separate(comparison, into = c("group1", "group2"), sep = "-") %>%
+mutate(
+y.position = max(sam_data$shannon_Genus, na.rm = TRUE) + seq(0.1, 0.5, length.out = n()),
+ p.label = case_when(
+ p.adj <= 0.001 ~ "***",
+ p.adj <= 0.01 ~ "**",
+ p.adj <= 0.05 ~ "*",
+ p.adj <= 0.1 ~ ".",
+ TRUE ~ "ns"
+ )
+)
+
+
+
+# Extract and combine all comparisons
+burden_tukey_df <- do.call(rbind, lapply(names(burden_tukey), function(term) {
+df <- as.data.frame(burden_tukey[[term]])
+df$comparison <- rownames(df)
+df$term <- term
+df
+}))
+
+
+burden_strain_pval_df <- burden_tukey_df %>%
+ filter(term == "Strain") %>%
+ rename(p.adj = `p adj`) %>% # Rename the column to avoid issues
+ separate(comparison, into = c("group1", "group2"), sep = "-") %>%
+mutate(
+y.position = max(sam_data$shannon_Genus, na.rm = TRUE) + seq(0.1, 0.5, length.out = n()),
+ p.label = case_when(
+ p.adj <= 0.001 ~ "***",
+ p.adj <= 0.01 ~ "**",
+ p.adj <= 0.05 ~ "*",
+ p.adj <= 0.1 ~ ".",
+ TRUE ~ "ns"
+ )
+)
+
+
+burden_anova_dpe_df <- data.frame(
+  group1 = "31",  # replace with actual level name
+  group2 = "44",  # replace with actual level name
+  p.adj = dpe_pval,
+  y.position = 16,
+  p.label = case_when(
+    dpe_pval <= 0.001 ~ "***",
+    dpe_pval <= 0.01 ~ "**",
+    dpe_pval <= 0.05 ~ "*",
+    dpe_pval <= 0.1 ~ ".",
+    TRUE ~ "ns"
+  )
+)
+
+#Create Summary table
+burden_table <- anova(burden_lm) %>%
+  kbl(
+    caption = "Total Worm Count ~ Intercept + Strain + DPE",
+    digits = 3,
+    align = "c",
+    col.names = c("Df", "Sum Sq", "Mean Sq", "F value", "Pr(>F)")
+  ) %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria") %>%
+  row_spec(0, bold = TRUE, background = "white") %>%
+  kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
+column_spec(1:5, width = "100px")
+
+```
+# Factor Effects
+## Alpha Diversity
+```{r}
+#ANOVA, shannon entropy
+anova(shannon_lm)
+#Tukey Post-hoc test without Weight
+shannon_tukey <- lm(formula = shannon_Genus ~ Strain + Treatment + DPE + Treatment:DPE, data = sam_data) %>%
+  aov() %>%
+  TukeyHSD()
+
+
+# Extract and combine all comparisons
+shannon_tukey_df <- do.call(rbind, lapply(names(shannon_tukey), function(term) {
+df <- as.data.frame(shannon_tukey[[term]])
+df$comparison <- rownames(df)
+df$term <- term
+df
+}))
+
+
+shannon_strain_pval_df <- shannon_tukey_df %>%
+ filter(term == "Strain") %>%
+ rename(p.adj = `p adj`) %>% # Rename the column to avoid issues
+ separate(comparison, into = c("group1", "group2"), sep = "-") %>%
+mutate(
+y.position = max(sam_data$shannon_Genus, na.rm = TRUE) + seq(0.1, 0.5, length.out = n()),
+ p.label = case_when(
+ p.adj <= 0.001 ~ "***",
+ p.adj <= 0.01 ~ "**",
+ p.adj <= 0.05 ~ "*",
+ p.adj <= 0.1 ~ ".",
+ TRUE ~ "ns"
+ )
+)
+
+shannon_strain_pval_df$Metric <- "Shannon Entropy"
+
+shannon_treatment_pval_df <- shannon_tukey_df %>%
+ filter(term == "Treatment") %>%
+ rename(p.adj = `p adj`) %>% # Rename the column to avoid issues
+ separate(comparison, into = c("group1", "group2"), sep = "-") %>%
+mutate(
+y.position = max(sam_data$shannon_Genus, na.rm = TRUE) + seq(0.1, 0.5, length.out = n()),
+ p.label = case_when(
+ p.adj <= 0.001 ~ "***",
+ p.adj <= 0.01 ~ "**",
+ p.adj <= 0.05 ~ "*",
+ p.adj <= 0.1 ~ ".",
+ TRUE ~ "ns"
+ )
+)
+
+shannon_treatment_pval_df$Metric <- "Shannon Entropy"
+
+
+
+# Create Summary Table
+shannon_table <- anova(shannon_lm) %>%
+  kbl(
+    caption = "Shannon Entropy ~ Intercept + Strain + Treatment + DPE + Weight_mg + Treatment:DPE",
+    digits = 3,
+    align = "c",
+    col.names = c("Df", "Sum Sq", "Mean Sq", "F value", "Pr(>F)")
+  ) %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria") %>%
+  row_spec(0, bold = TRUE, background = "white") %>%
+  kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
+column_spec(1:5, width = "100px")
+
+#for Control
+anova(shannon_control_lm)
+
+shannon_control_tukey <- shannon_control_lm %>%
+  aov() %>%
+  TukeyHSD()
+
+
+# Extract and combine all comparisons
+shannon_control_tukey_df <- do.call(rbind, lapply(names(shannon_control_tukey), function(term) {
+df <- as.data.frame(shannon_control_tukey[[term]])
+df$comparison <- rownames(df)
+df$term <- term
+df
+}))
+
+
+shannon_control_strain_pval_df <- shannon_control_tukey_df %>%
+ filter(term == "Strain") %>%
+ rename(p.adj = `p adj`) %>% # Rename the column to avoid issues
+ separate(comparison, into = c("group1", "group2"), sep = "-") %>%
+mutate(
+y.position = max(sam_data$shannon_Genus, na.rm = TRUE) + seq(0.1, 0.5, length.out = n()),
+ p.label = case_when(
+ p.adj <= 0.001 ~ "***",
+ p.adj <= 0.01 ~ "**",
+ p.adj <= 0.05 ~ "*",
+ p.adj <= 0.1 ~ ".",
+ TRUE ~ "ns"
+ )
+)
+
+shannon_control_strain_pval_df$Metric <- "Shannon Entropy"
+
+
+# Create Summary Table
+shannon_control_table <- anova(shannon_control_lm) %>%
+  kbl(
+    caption = "Shannon Entropy ~ Intercept + Strain",
+    digits = 3,
+    align = "c",
+    col.names = c("Df", "Sum Sq", "Mean Sq", "F value", "Pr(>F)")
+  ) %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria") %>%
+  row_spec(0, bold = TRUE, background = "white") %>%
+  kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
+column_spec(1:5, width = "100px")
+
+#For Exposed Table
+anova(shannon_exposed_lm)
+
+shannon_exposed_tukey <- shannon_exposed_lm %>%
+  aov() %>%
+  TukeyHSD()
+
+
+# Extract and combine all comparisons
+shannon_exposed_tukey_df <- do.call(rbind, lapply(names(shannon_exposed_tukey), function(term) {
+df <- as.data.frame(shannon_exposed_tukey[[term]])
+df$comparison <- rownames(df)
+df$term <- term
+df
+}))
+
+
+shannon_exposed_strain_pval_df <- shannon_exposed_tukey_df %>%
+ filter(term == "Strain") %>%
+ rename(p.adj = `p adj`) %>% # Rename the column to avoid issues
+ separate(comparison, into = c("group1", "group2"), sep = "-") %>%
+mutate(
+y.position = max(sam_data$shannon_Genus, na.rm = TRUE) + seq(0.1, 0.5, length.out = n()),
+ p.label = case_when(
+ p.adj <= 0.001 ~ "***",
+ p.adj <= 0.01 ~ "**",
+ p.adj <= 0.05 ~ "*",
+ p.adj <= 0.1 ~ ".",
+ TRUE ~ "ns"
+ )
+)
+
+shannon_exposed_strain_pval_df$Metric <- "Shannon Entropy"
+
+# Create Summary Table
+shannon_exposed_table <- anova(shannon_exposed_lm) %>%
+  kbl(
+    caption = "Shannon Entropy ~ Intercept + Strain",
+    digits = 3,
+    align = "c",
+    col.names = c("Df", "Sum Sq", "Mean Sq", "F value", "Pr(>F)")
+  ) %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria") %>%
+  row_spec(0, bold = TRUE, background = "white") %>%
+  kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
+column_spec(1:5, width = "100px")
+
+#ANOVA observed richness
+anova(observed_lm)
+
+#Tukey Post-hoc test without Weight or Total.Worm.Count
+observed_tukey <- lm(formula = sqrt_observed_Genus ~ Strain + Treatment + DPE +  Strain:Treatment + Strain:DPE + 
+    Treatment:DPE, data = sam_data) %>%
+  aov() %>%
+  TukeyHSD()
+
+
+# Extract and combine all comparisons
+observed_tukey_df <- do.call(rbind, lapply(names(observed_tukey), function(term) {
+df <- as.data.frame(observed_tukey[[term]])
+df$comparison <- rownames(df)
+df$term <- term
+df
+}))
+
+
+observed_strain_pval_df <- observed_tukey_df %>%
+ filter(term == "Strain") %>%
+ rename(p.adj = `p adj`) %>% # Rename the column to avoid issues
+ separate(comparison, into = c("group1", "group2"), sep = "-") %>%
+mutate(
+y.position = max(sam_data$observed_Genus, na.rm = TRUE) + seq(0.1, 0.5, length.out = n()),
+ p.label = case_when(
+ p.adj <= 0.001 ~ "***",
+ p.adj <= 0.01 ~ "**",
+ p.adj <= 0.05 ~ "*",
+ p.adj <= 0.1 ~ ".",
+ TRUE ~ "ns"
+ )
+)
+
+observed_strain_pval_df$Metric <- "# Observed Genera"
+
+observed_treatment_pval_df <- observed_tukey_df %>%
+ filter(term == "Treatment") %>%
+ rename(p.adj = `p adj`) %>% # Rename the column to avoid issues
+ separate(comparison, into = c("group1", "group2"), sep = "-") %>%
+mutate(
+y.position = max(sam_data$observed_Genus, na.rm = TRUE) + seq(0.1, 0.5, length.out = n()),
+ p.label = case_when(
+ p.adj <= 0.001 ~ "***",
+ p.adj <= 0.01 ~ "**",
+ p.adj <= 0.05 ~ "*",
+ p.adj <= 0.1 ~ ".",
+ TRUE ~ "ns"
+ )
+)
+
+observed_treatment_pval_df$Metric <- "# Observed Genera"
+
+alpha_strain_pval_df <- bind_rows(shannon_strain_pval_df, observed_strain_pval_df)
+
+alpha_strain_tukey_table <- alpha_strain_pval_df %>%
+  kbl(
+    caption = "Post-Hoc Tukey Test for All Samples - Alpha Diversity Metrics",
+    digits = 3,
+    align = "c",
+    col.names = c("diff", "lwr", "upr", "p.adj", "group1", "group2", "term", "y.position", "p.label", "Metric")
+  ) %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria") %>%
+  row_spec(0, bold = TRUE, background = "white") %>%
+  kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
+column_spec(1, width = "100px") %>%
+column_spec(1:10, width= "65px") %>%
+column_spec(11,width = "175px")
+
+alpha_treatment_pval_df <- bind_rows(shannon_treatment_pval_df, observed_treatment_pval_df)
+
+#Create Table
+observed_table <- anova(observed_lm) %>%
+  kbl(caption = get_formula(observed_lm)) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+
+observed_table <- anova(observed_lm) %>%
+  kbl(
+    caption = "# Observed Genera ~ Intercept + Strain + Treatment + DPE + Weight_mg + Total.Worm.Count + Strain:Treatment + Strain:DPE + Treatment:DPE",
+    digits = 3,
+    align = "c",
+    col.names = c("Df", "Sum Sq", "Mean Sq", "F value", "Pr(>F)")
+  ) %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria") %>%
+  row_spec(0, bold = TRUE, background = "white") %>%
+  kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
+column_spec(1:5, width = "100px")
+
+
+#Tukey Post-hoc test without Weight and worm count
+lm(formula = sqrt_observed_Genus ~ Strain + Treatment + DPE + Strain:Treatment + Strain:DPE + Treatment:DPE, data = sam_data) %>%
+  aov() %>%
+  TukeyHSD()
+
+#for each treatment
+anova(observed_control_lm)
+anova(observed_exposed_lm)
+observed_exposed_lm %>%
+  aov() %>%
+  TukeyHSD()
+
+
+#for Control
+anova(observed_control_lm)
+
+observed_control_tukey <- observed_control_lm %>%
+  aov() %>%
+  TukeyHSD()
+
+
+# Extract and combine all comparisons
+observed_control_tukey_df <- do.call(rbind, lapply(names(observed_control_tukey), function(term) {
+df <- as.data.frame(observed_control_tukey[[term]])
+df$comparison <- rownames(df)
+df$term <- term
+df
+}))
+
+
+observed_control_strain_pval_df <- observed_control_tukey_df %>%
+ filter(term == "Strain") %>%
+ rename(p.adj = `p adj`) %>% # Rename the column to avoid issues
+ separate(comparison, into = c("group1", "group2"), sep = "-") %>%
+mutate(
+y.position = max(sam_data$observed_Genus, na.rm = TRUE) + seq(0.1, 0.5, length.out = n()),
+ p.label = case_when(
+ p.adj <= 0.001 ~ "***",
+ p.adj <= 0.01 ~ "**",
+ p.adj <= 0.05 ~ "*",
+ p.adj <= 0.1 ~ ".",
+ TRUE ~ "ns"
+ )
+)
+
+observed_control_strain_pval_df$Metric <- "# Observed Genera"
+
+# Create Summary Table
+observed_control_table <- anova(observed_control_lm) %>%
+  kbl(
+    caption = "# Observed Genera ~ Intercept + Strain",
+    digits = 3,
+    align = "c",
+    col.names = c("Df", "Sum Sq", "Mean Sq", "F value", "Pr(>F)")
+  ) %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria") %>%
+  row_spec(0, bold = TRUE, background = "white") %>%
+  kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
+column_spec(1:5, width = "100px")
+
+#For Exposed Table
+anova(observed_exposed_lm)
+
+observed_exposed_tukey <- observed_exposed_lm %>%
+  aov() %>%
+  TukeyHSD()
+
+
+# Extract and combine all comparisons
+observed_exposed_tukey_df <- do.call(rbind, lapply(names(observed_exposed_tukey), function(term) {
+df <- as.data.frame(observed_exposed_tukey[[term]])
+df$comparison <- rownames(df)
+df$term <- term
+df
+}))
+
+
+observed_exposed_strain_pval_df <- observed_exposed_tukey_df %>%
+ filter(term == "Strain") %>%
+ rename(p.adj = `p adj`) %>% # Rename the column to avoid issues
+ separate(comparison, into = c("group1", "group2"), sep = "-") %>%
+mutate(
+y.position = max(sam_data$observed_Genus, na.rm = TRUE) + seq(0.1, 0.5, length.out = n()),
+ p.label = case_when(
+ p.adj <= 0.001 ~ "***",
+ p.adj <= 0.01 ~ "**",
+ p.adj <= 0.05 ~ "*",
+ p.adj <= 0.1 ~ ".",
+ TRUE ~ "ns"
+ )
+)
+
+observed_exposed_strain_pval_df$Metric <- "# Observed Genera"
+
+# Create Summary Table
+observed_exposed_table <- anova(observed_exposed_lm) %>%
+  kbl(
+    caption = "# Observed Genera ~ Intercept + Strain",
+    digits = 3,
+    align = "c",
+    col.names = c("Df", "Sum Sq", "Mean Sq", "F value", "Pr(>F)")
+  ) %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria") %>%
+  row_spec(0, bold = TRUE, background = "white") %>%
+  kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
+column_spec(1:5, width = "100px")
+
+# Combine both alpha metrics for both control and exposed
+alpha_control_pval_df <- bind_rows(shannon_control_strain_pval_df, observed_control_strain_pval_df)
+
+
+alpha_control_tukey_table <- alpha_control_pval_df %>%
+  kbl(
+    caption = "Post-Hoc Tukey Test for Control Sample Alpha Diversity Metrics",
+    digits = 3,
+    align = "c",
+    col.names = c("diff", "lwr", "upr", "p.adj", "group1", "group2", "term", "y.position", "p.label", "Metric")
+  ) %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria") %>%
+  row_spec(0, bold = TRUE, background = "white") %>%
+  kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
+column_spec(1, width = "100px") %>%
+column_spec(1:10, width= "65px") %>%
+column_spec(11,width = "175px")
+
+
+alpha_exposed_pval_df <- bind_rows(shannon_exposed_strain_pval_df, observed_exposed_strain_pval_df)
+
+alpha_exposed_tukey_table <- alpha_exposed_pval_df %>%
+  kbl(
+    caption = "Post-Hoc Tukey Test for Exposed Sample Alpha Diversity Metrics",
+    digits = 3,
+    align = "c",
+    col.names = c("diff", "lwr", "upr", "p.adj", "group1", "group2", "term", "y.position", "p.label", "Metric")
+  ) %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria") %>%
+  row_spec(0, bold = TRUE, background = "white") %>%
+  kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
+column_spec(1, width = "100px") %>%
+column_spec(1:10, width= "65px") %>%
+column_spec(11,width = "175px")
+```
+## Beta Diversity
+```{r}
+#adonis
+adonis.result <- adonis2(dist_matrix ~ Strain + Treatment + DPE + Total.Worm.Count + Strain:Treatment + Strain:DPE + Treatment:DPE, data = sam_data)
+adonis.result
+adonis.result$aov.tab
+#run PERMANOVA based on best model
+beta_all <- ps %>%
+   tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+   tax_agg(rank = "Genus") %>%
+   dist_calc(dist = "bray") %>%
+   dist_permanova(variables = c("Strain", "Treatment", "DPE", "Total.Worm.Count", interactions = c("Strain*Treatment", "Strain*DPE", "Treatment*DPE")), n_perms = 999, seed = 123) %>%
+   perm_get()
+
+# Extract distance matrix and metadata
+dist <- ps %>%
+   tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+   tax_agg(rank = "Genus") %>%
+   dist_calc(dist = "bray") %>%
+   dist_get()
+ 
+ 
+# Run adonis2 directly
+beta_all <- adonis2(
+   dist ~ Strain + Treatment + DPE + Total.Worm.Count + Strain:Treatment + Strain:DPE + Treatment:DPE,
+   data = sam_data,
+   permutations = 999,
+   by = "terms"  # or try "none"
+)
+
+#summary table
+beta_table <- beta_all %>%
+  kbl(
+    caption = "Bray-Curtis Dissimilarity ~ Strain + Treatment + DPE + Total.Worm.Count + Strain:Treatment + Strain:DPE + Treatment:DPE",
+    digits = 3,
+    align = "c",
+    col.names = c("Factor", "Df", "SumsOfSqs", "MeanSqs", "R2", "Pr(>F)")
+  ) %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria") %>%
+  row_spec(0, bold = TRUE, background = "white") %>%
+  kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
+column_spec(1:5, width = "100px")
+
+
+#homogeneity of dispersion tests
+bdisp_all <- ps %>%
+    tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+    tax_agg(rank = "Genus") %>%
+    dist_calc(dist = "bray") %>%
+  dist_bdisp(
+    variables = c("Strain", "Treatment", "DPE", "Total.Worm.Count"),
+    method = c("centroid", "median")[[1]],
+    complete_cases = TRUE,
+    verbose = TRUE) %>%
+  bdisp_get(
+)
+
+#Strain Dispersion
+bdisp_all$Strain$model$group.distances #average distance to the centroid
+bdisp_all$Strain$anova #anova results
+bdisp_all$Strain$tukeyHSD$group #Tukey dispersion
+
+#Treatment Dispersion
+bdisp_all$Treatment$model$group.distances #average distance to the centroid
+bdisp_all$Treatment$anova #anova results
+bdisp_all$Treatment$tukeyHSD$group #Tukey dispersion
+
+#DPE Dispersion
+bdisp_all$DPE$model$group.distances #average distance to the centroid
+bdisp_all$DPE$anova #anova results
+bdisp_all$DPE$tukeyHSD$group #Tukey dispersion
+
+#Total Worm Count Dispersion
+bdisp_all$Total.Worm.Count$model$group.distances #average distance to the centroid
+bdisp_all$Total.Worm.Count$anova #anova results
+bdisp_all$Total.Worm.Count$tukeyHSD$group #Tukey dispersion
+
+
+
+#for just control
+beta_control <- ps %>%
+  ps_filter(Treatment == "Control") %>%
+   tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+   tax_agg(rank = "Genus") %>%
+   dist_calc(dist = "bray") %>%
+   dist_permanova(variables = c("Strain", "DPE"), n_perms = 999, seed = 123) %>%
+   perm_get()
+
+#summary table
+beta_control_table <- beta_control %>%
+  kbl(
+    caption = "Bray-Curtis Dissimilarity ~ Strain + DPE",
+    digits = 3,
+    align = "c",
+    col.names = c("Factor", "Df", "SumsOfSqs", "MeanSqs", "R2", "Pr(>F)")
+  ) %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria") %>%
+  row_spec(0, bold = TRUE, background = "white") %>%
+  kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
+column_spec(1:5, width = "100px")
+
+bdisp_cont <- ps %>%
+  ps_filter(Treatment == "Control") %>%
+    tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+    tax_agg(rank = "Genus") %>%
+    dist_calc(dist = "bray") %>%
+  dist_bdisp(
+    variables = c("Strain", "DPE"),
+    method = c("centroid", "median")[[1]],
+    complete_cases = TRUE,
+    verbose = TRUE) %>%
+  bdisp_get(
+)
+
+
+#run PERMANOVA based on best model just exposed
+beta_exposed <- ps %>%
+  ps_filter(Treatment == "Exposed") %>%
+   tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+   tax_agg(rank = "Genus") %>%
+   dist_calc(dist = "bray") %>%
+   dist_permanova(variables = c("Strain", "DPE", "Total.Worm.Count", interactions = c("Strain*DPE")), n_perms = 999, seed = 123) %>%
+   perm_get()
+
+# Extract distance matrix and metadata
+dist_exposed <- ps %>%
+  ps_filter(Treatment == "Exposed") %>%
+   tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+   tax_agg(rank = "Genus") %>%
+   dist_calc(dist = "bray") %>%
+   dist_get()
+ 
+ 
+# Run adonis2 directly
+beta_exposed <- adonis2(
+   dist_exposed ~ Strain + DPE + Total.Worm.Count + + Strain:DPE,
+   data = exposed_sam_data,
+   permutations = 999,
+   by = "terms"  # or try "none"
+)
+
+#summary table
+beta_exposed_table <- beta_exposed %>%
+  kbl(
+    caption = "Bray-Curtis Dissimilarity ~ Strain + DPE + Total Worm Count + Strain*DPE",
+    digits = 3,
+    align = "c",
+    col.names = c("Factor", "Df", "SumsOfSqs", "MeanSqs", "R2", "Pr(>F)")
+  ) %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria") %>%
+  row_spec(0, bold = TRUE, background = "white") %>%
+  kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
+column_spec(1:5, width = "100px")
+
+
+#homogeneity of dispersion tests
+bdisp_exp <- ps %>%
+  ps_filter(Treatment == "Exposed") %>%
+    tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+    tax_agg(rank = "Genus") %>%
+    dist_calc(dist = "bray") %>%
+  dist_bdisp(
+    variables = c("Strain", "DPE", "Total.Worm.Count"),
+    method = c("centroid", "median")[[1]],
+    complete_cases = TRUE,
+    verbose = TRUE) %>%
+  bdisp_get(
+)
+```
+
+
+
+
+
+
+
+
+
+
+## Strain Effects
+```{r}
+#alpha diversity
+anova(best_lm)
+#Tukey Post-hoc test without Weight
+lm(formula = shannon_Genus ~ Strain + Treatment + DPE + Treatment:DPE, data = sam_data) %>%
+  aov() %>%
+  TukeyHSD()
+## Alpha diversity differs by strain (ANOVA, P = 0.033), with the alpha diversity of the AB and Casper strains being significantly different (Tukey, P = 0.022).
+
+#beta diversity
+adonis2(dist_matrix ~ Strain + Treatment + DPE + Total.Worm.Count + Strain:Treatment + Strain:DPE + Treatment:DPE, data = sam_data)
+#run PERMANOVA based on best model
+ps %>%
+   tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+   tax_agg(rank = "Genus") %>%
+   dist_calc(dist = "bray") %>%
+   dist_permanova(variables = c("Strain", "Treatment", "DPE", "Total.Worm.Count", interactions = c("Strain*Treatment", "Strain*DPE", "Treatment*DPE")), n_perms = 999, seed = 123) %>%
+   perm_get()
+#homogeneity of dispersion
+bdisp_all <- ps %>%
+    tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+    tax_agg(rank = "Genus") %>%
+    dist_calc(dist = "bray") %>%
+  dist_bdisp(
+    variables = c("Strain", "Treatment", "DPE", "Total.Worm.Count"),
+    method = c("centroid", "median")[[1]],
+    complete_cases = TRUE,
+    verbose = TRUE) %>%
+  bdisp_get(
+)
+
+#average distance to the centroid
+bdisp_all$Strain$model$group.distances
+#anova results
+bdisp_all$Strain$anova
+#Differences
+bdisp_all$Strain$tukeyHSD$group
+## Beta Diversity differs between strains (Adonis, P = 0.001). Tukey test reveals significant differences between dispersion of AB and 5D fish (P = 0.033).
+```
+
+
+## Treatment Effects
+```{r}
+#alpha diversity
+anova(best_lm)
+#Tukey Post-hoc test
+lm(formula = shannon_Genus ~ Strain +Treatment + DPE + Treatment:DPE, data = sam_data) %>%
+  aov() %>%
+  TukeyHSD()
+## 
+
+#beta diversity
+adonis2(dist_matrix ~ Strain + Treatment + DPE + Total.Worm.Count + Strain:Treatment + Strain:DPE + Treatment:DPE, data = sam_data)
+#run PERMANOVA based on best model
+ps %>%
+   tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+   tax_agg(rank = "Genus") %>%
+   dist_calc(dist = "bray") %>%
+   dist_permanova(variables = c("Strain", "Treatment", "DPE", "Total.Worm.Count", interactions = c("Strain*Treatment", "Strain*DPE", "Treatment*DPE")), n_perms = 999, seed = 123) %>%
+   perm_get()
+#homogeneity of dispersion
+bdisp_all <- ps %>%
+    tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+    tax_agg(rank = "Genus") %>%
+    dist_calc(dist = "bray") %>%
+  dist_bdisp(
+    variables = c("Strain", "Treatment", "DPE", "Total.Worm.Count"),
+    method = c("centroid", "median")[[1]],
+    complete_cases = TRUE,
+    verbose = TRUE) %>%
+  bdisp_get(
+)
+
+#average distance to the centroid
+bdisp_all$Treatment$model$group.distances
+#anova results
+bdisp_all$Treatment$anova
+#Differences
+bdisp_all$Treatment$tukeyHSD$group
+
+```
+
+## Other Effects
+```{r}
+#alpha diversity
+anova(best_lm)
+## Alpha Diversity differs by DPE (ANOVA, P=0.06544), and the interaction between Treatment and DPE (ANOVA, P=0.07436).
+summary(best_lm)
+## Mean alpha diversity scores differ in their relationship to DPE between the control and exposed groups with fish in the exposed group having higher mean alpha diversity scores at 44 DPE and fish in the control group having higher mean alpha diversity scores at 31 DPE (ANOVA, P=0.0744).
+
+#beta diversity
+adonis2(dist_matrix ~ Strain + Treatment + DPE + Total.Worm.Count + Strain:Treatment + Strain:DPE + Treatment:DPE, data = sam_data)
+#run PERMANOVA based on best model
+ps %>%
+   tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+   tax_agg(rank = "Genus") %>%
+   dist_calc(dist = "bray") %>%
+   dist_permanova(variables = c("Strain", "Treatment", "DPE", "Total.Worm.Count", interactions = c("Strain*Treatment", "Strain*DPE", "Treatment*DPE")), n_perms = 999, seed = 123) %>%
+   perm_get()
+
+#Strain:Treatment
+#create interaction term for manual assessment of Strain:Treatment interaction dispersions
+ps@sam_data$"Strain_Treatment" <- paste(ps@sam_data$Strain, ps@sam_data$Treatment, sep = "_")
+#homogeneity of dispersion
+bdisp_all <- ps %>%
+    tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+    tax_agg(rank = "Genus") %>%
+    dist_calc(dist = "bray") %>%
+  dist_bdisp(
+    variables = c("Strain_Treatment"),
+    method = c("centroid", "median")[[1]],
+    complete_cases = TRUE,
+    verbose = TRUE) %>%
+  bdisp_get(
+)
+#average distance to the centroid
+bdisp_all$Strain_Treatment$model$group.distances
+#anova results
+bdisp_all$Strain_Treatment$anova
+#Differences
+bdisp_all$Strain_Treatment$tukeyHSD$group
+
+# Create a table
+# Convert to data frame
+tukey_dispersion_df <- as.data.frame(bdisp_all$Strain_Treatment$tukeyHSD$group)
+tukey_dispersion_df$comparison <- rownames(tukey_dispersion_df)
+
+# Identify comparisons where both are Control or both are Exposed
+tukey_dispersion_df <- tukey_dispersion_df %>%
+    mutate(
+        group1 = str_extract(comparison, "^[^-]+"),
+        group2 = str_extract(comparison, "(?<=-)[^_]+_[^_]+"),
+        both_condition = case_when(
+            str_detect(group1, "Control") & str_detect(group2, "Control") ~ "Both Control",
+            str_detect(group1, "Exposed") & str_detect(group2, "Exposed") ~ "Both Exposed",
+            TRUE ~ NA_character_
+        )
+    )
+
+tukey_dispersion_df <- tukey_dispersion_df %>%
+  rename(p_adj = `p adj`) %>%
+  rename(Comparison = comparison)
+
+
+# Filter and highlight
+hod_condition_table <- tukey_dispersion_df %>%
+  filter(!is.na(both_condition)) %>%
+  dplyr::select(Comparison, diff, lwr, upr, p_adj, both_condition) %>%
+  kbl(digits = 3, caption = "Comparisons: Both Control or Both Exposed",row.names = FALSE) %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria") %>%
+  row_spec(0, bold = TRUE, background = "white") %>%
+  kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
+column_spec(1, width = "200px") %>%
+column_spec(2:5, width = "50px") %>%
+column_spec(6, width = "125px")
+
+
+
+
+# Extract strain names
+tukey_dispersion_df <- tukey_dispersion_df %>%
+  mutate(
+    strain1 = str_extract(group1, "^[^_]+"),
+    strain2 = str_extract(group2, "^[^_]+"),
+    same_strain = if_else(strain1 == strain2, TRUE, FALSE)
+  )
+
+tukey_dispersion_df <- tukey_dispersion_df %>%
+  rename(Strain = strain1)
+
+# Filter and highlight
+hod_strain_table <- tukey_dispersion_df %>%
+  filter(same_strain) %>%
+  dplyr::select(Comparison, diff, lwr, upr, p_adj, Strain) %>%
+  kbl(digits = 3, caption = "Comparisons Within the Same Strain",row.names = FALSE) %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria") %>%
+  row_spec(0, bold = TRUE, background = "white") %>%
+  kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
+column_spec(1, width = "200px") %>%
+column_spec(2:5, width = "50px") %>%
+column_spec(6, width = "125px")
+
+
+#Strain:DPE
+#create interaction term for manual assessment of Strain:DPE interaction dispersions
+ps@sam_data$"Strain_DPE" <- paste(ps@sam_data$Strain, ps@sam_data$DPE, sep = "_")
+#homogeneity of dispersion
+bdisp_all <- ps %>%
+    tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+    tax_agg(rank = "Genus") %>%
+    dist_calc(dist = "bray") %>%
+  dist_bdisp(
+    variables = c("Strain_DPE"),
+    method = c("centroid", "median")[[1]],
+    complete_cases = TRUE,
+    verbose = TRUE) %>%
+  bdisp_get(
+)
+#average distance to the centroid
+bdisp_all$Strain_DPE$model$group.distances
+#anova results
+bdisp_all$Strain_DPE$anova
+#Differences
+bdisp_all$Strain_DPE$tukeyHSD$group
+
+#Treatment:DPE
+#create interaction term for manual assessment of Strain:DPE interaction dispersions
+ps@sam_data$"Treatment_DPE" <- paste(ps@sam_data$Treatment, ps@sam_data$DPE, sep = "_")
+#homogeneity of dispersion
+bdisp_all <- ps %>%
+    tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+    tax_agg(rank = "Genus") %>%
+    dist_calc(dist = "bray") %>%
+  dist_bdisp(
+    variables = c("Treatment_DPE"),
+    method = c("centroid", "median")[[1]],
+    complete_cases = TRUE,
+    verbose = TRUE) %>%
+  bdisp_get(
+)
+#average distance to the centroid
+bdisp_all$Treatment_DPE$model$group.distances
+#anova results
+bdisp_all$Treatment_DPE$anova
+#Differences
+bdisp_all$Treatment_DPE$tukeyHSD$group
+```
+
+# Worm Burden Modelling
+```{r, warning = FALSE}
+#alpha diversity
+exp_sam_data <- sam_data %>% filter(Treatment == "Exposed")
+#total worm count visualization
+exp_sam_data %>%
+     ggplot(aes(y = DPE, x = Total.Worm.Count)) +
+     geom_boxplot(width = 0.7) +
+     geom_jitter(height = 0.2, aes(color = Strain)) +
+     theme_bw()
+#scatterplot of richness vs total worm count
+exp_sam_data %>%
+     ggplot(aes(y = observed_Genus, x = Total.Worm.Count)) +
+     geom_point(aes(color = Strain)) +
+     theme_bw()
+#negative binomial regressions
+glm.nb(Total.Worm.Count ~ DPE, data = exp_sam_data) %>%
+ summary()
+glm.nb(observed_Genus ~ Total.Worm.Count, data = exp_sam_data) %>%
+ summary()
+glm.nb(shannon_Genus ~ Total.Worm.Count, data = exp_sam_data) %>%
+ summary()
+
+```

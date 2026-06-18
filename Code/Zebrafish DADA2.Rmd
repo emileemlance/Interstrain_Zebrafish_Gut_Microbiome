@@ -1,0 +1,265 @@
+---
+title: "Zebrafish DADA2"
+author: "Emilee Lance"
+date: "2024-01-12"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Load Libraries
+```{r libraries, echo = FALSE, warning = FALSE}
+library(knitr)
+library(BiocStyle)
+library(ggplot2)
+library(gridExtra)
+library(dada2)
+library(phyloseq)
+library(DECIPHER)
+library(phangorn)
+library(tidyverse)
+library(microViz)
+library(ggtext)
+library(ggraph)
+library(DT)
+library(dplyr)
+library(rcompanion)
+```
+
+##Load and format the Fastq Files
+These were obtained from the CQLS infrastructure.
+Files found here: /nfs2/hts/miseq/2021/211018_M01498_0845_000000000-JYH2G/L1
+```{r Fastq files, warning = FALSE}
+path <- "C:/Users/emile/Documents/OSU/Sharpton Lab/Winter2024_Project/FastQ Files"
+#sort forward and reverse reads
+fnFs <- sort(list.files(path, pattern="_R1_001.fastq.gz", full.names = TRUE))
+fnRs <- sort(list.files(path, pattern="_R2_001.fastq.gz", full.names = TRUE))
+#extract sample names
+sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
+sample.names <- sapply(strsplit(basename(sample.names), "-"), `[`, 5)
+#quality check
+plotQualityProfile(fnFs[1:2])
+plotQualityProfile(fnRs[1:2])
+```
+
+##Filter and Trim the Fastq Files
+Forward and reverse files are matched, trimmed based on quality of reads with a maximum error rate of 2, then filtered. Trimmed and filtered files are placed in a new folder.
+```{r filter and trim, echo = FALSE, warning = FALSE}
+filt_path <- file.path(path, "filtered") 
+if(!file_test("-d", filt_path)) dir.create(filt_path)
+filtFs <- file.path(filt_path, paste0(sample.names, "_F_filt.fastq.gz"))
+filtRs <- file.path(filt_path, paste0(sample.names, "_R_filt.fastq.gz"))
+out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(210,190),
+                      maxN=0, maxEE=2, truncQ=2, rm.phix=TRUE,
+                      compress=TRUE, multithread=FALSE)
+head(out)
+dim(out)
+```
+
+##Evaluate Error Rates
+```{r errors}
+#Learn error rates
+errF <- learnErrors(filtFs, multithread=TRUE)
+errR <- learnErrors(filtRs, multithread=TRUE)
+plotErrors(errF, nominalQ=TRUE)
+
+#Subset existing file names
+filtFs <- filtFs[file.exists(filtFs)]
+filtRs <- filtRs[file.exists(filtRs)]
+
+#Sample Inference Data
+dadaFs <- dada(filtFs, err=errF, multithread=TRUE)
+dadaRs <- dada(filtRs, err=errR, multithread=TRUE)
+dadaFs[[1]]
+
+
+```
+
+##Merge Pairs and Remove Chimeras
+```{r pairs}
+#Merge Paired Reads
+mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
+# Inspect the merger data.frame from the first sample
+head(mergers[[1]])
+
+#Construct Sequence Table
+seqtab <- makeSequenceTable(mergers)
+dim(seqtab)
+table(nchar(getSequences(seqtab)))
+
+#Remove chimeras
+seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
+dim(seqtab.nochim)
+sum(seqtab.nochim)/sum(seqtab)
+```
+
+##Look at Sample Reads Throughout the Pipeline
+```{r, warning = FALSE}
+#Track samples
+getN <- function(x) sum(getUniques(x))
+track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, getN), rowSums(seqtab.nochim))
+colnames(track) <- c("input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
+rownames(track) <- sample.names
+head(track)
+```
+
+##Assign Taxonomy
+Using the Silva species (version 138) from Zenodo (https://zenodo.org/records/4587955)
+```{r Taxonomy}
+taxa <- assignTaxonomy(seqtab.nochim, "C:/Users/emile/Documents/OSU/Sharpton Lab/ZF_ISF__Emiliee_WI2024/Data/silva_nr99_v138.1_train_set.fa.gz", multithread=TRUE)
+taxa <- addSpecies(taxa, "C:/Users/emile/Documents/OSU/Sharpton Lab/ZF_ISF__Emiliee_WI2024/Data/silva_species_assignment_v138.1.fa.gz")
+taxa.print <- taxa
+rownames(taxa.print) <- NULL
+head(taxa.print)
+```
+##Preprocess Metadata
+```{r Preprocess Metadata}
+#load the metadata
+samdf <- read.csv("C:/Users/emile/Documents/OSU/Sharpton Lab/ZF_ISF__Emiliee_WI2024/Data/metadata.csv",header=TRUE)
+
+#Weights
+##Check for missing weight values and get the metadata
+samdf %>%
+  filter(!complete.cases(.))
+samdf_w <- samdf[!is.na(samdf$Weight_mg), ]
+
+##visualize the distribution of similar samples
+samdf %>%
+ filter(Strain == "TU" & Treatment == "Control") %>%
+ ggplot(aes(x = Weight_mg)) +
+ geom_histogram() +
+ theme_bw() 
+
+##get summary statistics
+summary_stats <- samdf_w %>%
+   filter(Strain == "TU" & Treatment == "Control") %>%
+   summarise(
+       count = n(),
+       mean = mean(Weight_mg, na.rm = TRUE),
+       sd = sd(Weight_mg, na.rm = TRUE),
+       min = min(Weight_mg, na.rm = TRUE),
+       max = max(Weight_mg, na.rm = TRUE),
+       median = median(Weight_mg, na.rm = TRUE),
+       IQR = IQR(Weight_mg, na.rm = TRUE)
+   )
+print(summary_stats)
+
+#test normality
+# Extract the filtered data for normality test
+filtered_data <- samdf_w %>%
+  filter(Strain == "TU" & Treatment == "Control")
+
+# Apply the Shapiro-Wilk test to the 'Weight_mg' column
+shapiro_test <- shapiro.test(filtered_data$Weight_mg)
+
+# Print the results of the Shapiro-Wilk test
+print(shapiro_test)
+if (shapiro_test$p.value > alpha) {
+        print("Sample looks Gaussian/Normally Distributed (fail to reject H0)")
+    } else {
+        print("Sample does not look Gaussian/Normally Distributed (reject H0)")
+    }
+
+#If Values are normally distributed, take the mean, if not, take the median
+print(summary_stats$mean)
+
+replacement <- samdf %>%
+  filter(!complete.cases(.)) %>%
+  replace(.,"Weight_mg" ,summary_stats$mean)
+
+samdf[is.na(samdf$Weight_mg), ] <- replacement
+
+```
+##Create Phyloseq Object
+```{r Phyloseq Object, echo = FALSE}
+#reformat rownames
+row.names(samdf) <- samdf$Sample
+seqtab.nochim_row_names <- sub("_F_filt.fastq.gz$", "", rownames(seqtab.nochim))
+rownames(seqtab.nochim) <- seqtab.nochim_row_names
+#create the phyloseq object
+ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
+               sample_data(samdf), 
+               tax_table(taxa))
+View(ps@tax_table)
+
+#Add supersaturation information
+supersat <- rownames(sample_data(ps))[sample_data(ps)$Strain %in% c("AB", "5D") & sample_data(ps)$Treatment == "Exposed"]
+super_sat_values <- ifelse(rownames(sam_data(ps)) %in% supersat, "Y", "N")
+sample_data(ps)$SuperSat <- super_sat_values
+
+#add age information
+ps <- ps %>%
+  microViz::ps_mutate(
+    Age = case_when(
+      Age.Days > 160 ~ "Older",
+      Age.Days < 160 ~ "Younger"
+      ))
+View(ps@tax_table)
+nrow(ps@tax_table)
+
+#Create new DPE column
+ps <- ps %>%
+  microViz::ps_mutate(
+    DPE = case_when(
+      Experiment == "31 dpe" ~ 31,
+      Experiment == "44 dpe" ~ 44
+      ))
+ps@sam_data$DPE <- as.factor(ps@sam_data$DPE)
+
+#filter
+ps <- ps %>%
+  # Any taxa not found in at least 2 samples are removed
+  microViz::tax_filter(min_prevalence = 2, undetected = 0) %>%
+  # Remove any unwanted reads
+  microViz::tax_select(c("Mitochondria", "Chloroplast", "Eukaryota"), deselect = TRUE) %>%
+  microViz::tax_select(c("Bacteria, Phylum"), deselect = TRUE)
+nrow(ps@tax_table)
+
+#Add ASVs
+ps <-
+ps %>% 
+  tax_name(
+    prefix = "ASV",
+    rank = NA,
+    pad_number = TRUE,
+    sep = "_"
+  )
+
+ps <- ps %>%
+# Fix names for taxonomic ranks not identified
+  microViz::tax_fix(suffix_rank = "current", anon_unique = T, unknown = NA)
+
+View(ps@tax_table)
+nrow(ps@tax_table)
+
+# save the object for future use
+saveRDS(ps, file = "C:/Users/emile/Documents/OSU/Sharpton Lab/ZF_ISF__Emiliee_WI2024/Data/ps_object.rds")
+```
+
+##Store DNA Sequences Elsewhere
+```{r}
+dna <- Biostrings::DNAStringSet(taxa_names(ps))
+names(dna) <- taxa_names(ps)
+ps <- merge_phyloseq(ps, dna)
+taxa_names(ps) <- paste0("ASV", seq(ntaxa(ps)))
+ps
+```
+
+##Visualize Most Abundant Taxa
+```{r, warning = FALSE}
+#sort in order of abundance
+top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
+ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
+ps.top20 <- prune_taxa(top20, ps.top20)
+#Plot by strain and separate by treatment
+ps.top20.glom.fam <- tax_glom(ps.top20, taxrank = "Family")
+plot_bar(ps.top20.glom.fam, x="Strain", fill="Family") + facet_wrap(~Treatment)
+ps.top20.glom.cla <- tax_glom(ps.top20, taxrank = "Class")
+plot_bar(ps.top20.glom.cla, x="Strain", fill="Class") + facet_wrap(~Treatment)
+ps.top20.glom.cla <- tax_glom(ps.top20, taxrank = "Genus")
+plot_bar(ps.top20.glom.cla, x="Strain", fill="Genus") + facet_wrap(~Treatment)
+```
+
+By the end of this process we created a phyloseq object and did some basic abundance visualization.
