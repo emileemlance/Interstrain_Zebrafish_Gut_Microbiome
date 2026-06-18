@@ -1,0 +1,1284 @@
+---
+title: "Figure Creation"
+author: "Emilee Lance"
+date: "2024-08-21"
+output: pdf_document
+---
+
+```{r setup, warning = FALSE, error = FALSE, message = FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+library(seriation)
+library(dplyr)
+library(purrr)
+library(ggplot2)
+library(phyloseq)
+library(microViz)
+library(shiny)
+library(multcomp)
+library(svglite)
+library(tidyverse)
+library(ggtext)
+library(ggpubr)
+library(Maaslin2)
+```
+
+# Load the Phyloseq object
+
+The phyloseq object was created by following the DADA2 workflow. Documentation can be found here: ./Code/Analysis/Zebrafish DADA2.Rmd. Phyloseq object saved here: ./Data/ps_object.rds. For this workflow we will be looking only at the Control and Exposed samples for all 4 strains of zebrafish (5D, AB, Casper & TU).
+
+```{r phyloseq object, tidy = TRUE}
+ps <- readRDS("C:/Users/emile/OneDrive - Oregon State University/Sharpton Lab/ZF_ISF__Emiliee_WI2024/Data/ps_object.rds")
+
+```
+# File Set-up
+```{r}
+path = "C:/Users/emile/OneDrive - Oregon State University/Sharpton Lab/ZF_ISF__Emiliee_WI2024/Figures"
+
+ps@sam_data$FillGroup <- ifelse(
+  ps@sam_data$Treatment == "Control",
+  "Control",
+  as.character(ps@sam_data$Strain)
+)
+
+ps@sam_data$FillGroup2 <- with(
+  ps@sam_data,
+  ifelse(
+    Pathology.Results == "positive",
+    as.character(Strain),   # always filled
+    ifelse(
+      Pathology.Results == "negative" & FillGroup != "Control",
+      as.character(Strain), # exposed-negative filled
+      "Control"             # control-negative unfilled
+    )
+  )
+)
+
+```
+#Define Palettes and Theme
+```{r}
+strain_colors <- c(
+  "5D" = "#E63073", 
+  "AB" = "#82B7E6", 
+  "Casper" = "#FFC107", 
+  "TU" = "#44B5A2"
+)
+
+fill_colors <- c(
+  "Control" = "white", 
+  "5D" = "#E63073", 
+  "AB" = "#82B7E6", 
+  "Casper" = "#FFC107", 
+  "TU" = "#44B5A2"
+)
+shape_values <- c("Control" = 21, "Exposed" = 21)
+
+custom_theme <- theme_minimal() +
+  theme(
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14, face = "bold"),
+    plot.title = element_text(size = 16, face = "bold"),
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 10),
+    panel.grid.major = element_line(color = "gray90"),
+    panel.grid.minor = element_line(color = "gray95")
+  )
+```
+
+#Physiology
+```{r}
+# Weight by strain and pathology results with conditional fill per treatment
+# Not included in the paper
+strain_pathology_weight_boxplot <- ps@sam_data %>%
+  ggplot(aes(y = Weight_mg, x = Strain)) +
+
+  # Boxplot with strain-colored outlines
+  geom_boxplot(
+    width = 0.7,
+    aes(color = Strain),
+    outlier.shape = NA
+  ) +
+
+  # Jittered points: outline = strain, fill = FillGroup, shape = Treatment
+  geom_jitter(
+    aes(
+      color = Strain,
+      fill  = FillGroup,
+      shape = Treatment
+    ),
+    size = 1,
+    stroke = 0.75,
+    show.legend = TRUE
+  ) +
+
+  # Named fill scale so colors map correctly
+  scale_fill_manual(
+    name = "Fill",
+    values = c(
+      "Control" = "white",
+      "5D"      = "#E63073",
+      "AB"      = "#82B7E6",
+      "Casper"  = "#FFC107",
+      "TU"      = "#44B5A2"
+    )
+  ) +
+
+  # Shapes for exposure group
+  scale_shape_manual(
+    name = "Exposure Group",
+    values = c("Control" = 21, "Exposed" = 21)
+  ) +
+
+  # Strain color outlines
+  scale_color_manual(
+    name = "Strain",
+    values = c(
+      "5D"     = "#E63073",
+      "AB"     = "#82B7E6",
+      "Casper" = "#FFC107",
+      "TU"     = "#44B5A2"
+    )
+  ) +
+
+  # Legend cleanup
+  guides(
+    fill = "none",  # hide fill legend if desired
+    color = guide_legend(override.aes = list(shape = 16, size = 2)),
+    shape = guide_legend(
+      override.aes = list(
+        size  = 2,
+        shape = 21,
+        fill  = c("white", "black"),  # Control = unfilled, Exposed = filled
+        color = "black"
+      )
+    )
+  ) +
+
+  theme_bw() +
+  facet_wrap(vars(Pathology.Results)) +
+  theme(custom_theme) +
+  labs(y = "Weight (mg)")
+strain_pathology_weight_boxplot
+ggsave(file = "strain_pathology_weight_boxplot.svg", plot = strain_pathology_weight_boxplot,width = 7, height =4.5, path=path)
+
+# Weight by strain and pathology results with conditional fill per treatment
+# Figure 1A
+strain_pathology_weight_boxplot_2 <- ps@sam_data %>%
+  as.data.frame() %>%
+  ggplot(aes(y = Weight_mg, x = Pathology.Results)) +
+
+  # Boxplot outlines by strain
+  geom_boxplot(
+    width = 0.7,
+    aes(color = Strain),
+    outlier.shape = NA
+  ) +
+
+  # Points: outline = strain, fill = FillGroup2, shape = Treatment
+  geom_jitter(
+    aes(
+      color = Strain,
+      fill  = FillGroup2,
+      shape = Treatment
+    ),
+    size = 1,
+    stroke = 0.75,
+    show.legend = TRUE
+  ) +
+
+  # Correct, named fill scale
+  scale_fill_manual(
+    name = "Fill",
+    values = c(
+      "Control" = "white",
+      "5D"      = "#E63073",
+      "AB"      = "#82B7E6",
+      "Casper"  = "#FFC107",
+      "TU"      = "#44B5A2"
+    )
+  ) +
+
+  # Shapes for exposure group
+  scale_shape_manual(
+    name = "Exposure Group",
+    values = c("Control" = 21, "Exposed" = 21)
+  ) +
+
+  # Strain outline colors
+  scale_color_manual(
+    name = "Strain",
+    values = c(
+      "5D"     = "#E63073",
+      "AB"     = "#82B7E6",
+      "Casper" = "#FFC107",
+      "TU"     = "#44B5A2"
+    )
+  ) +
+
+  # Legend cleanup
+  guides(
+    fill = "none",
+    color = guide_legend(override.aes = list(shape = 16, size = 2)),
+    shape = guide_legend(
+      override.aes = list(
+        size  = 2,
+        shape = 21,
+        fill  = c("white", "black"),
+        color = "black"
+      )
+    )
+  ) +
+
+  theme_bw() +
+  facet_wrap(vars(Strain), ncol = 4) +
+  theme(custom_theme) +
+  labs(y = "Weight (mg)", x = "Pathology Results")
+strain_pathology_weight_boxplot_2
+ggsave(file = "strain_pathology_weight_boxplot_2.svg", plot = strain_pathology_weight_boxplot_2,width = 7, height =4.5, path=path)
+
+#Worm burden of exposed fish by strain
+# Figure 1B
+worm_burden_by_strain<- ps_exposed@sam_data %>%
+     ggplot(aes(y = Total.Worm.Count, x = Strain)) +
+     geom_boxplot(width = 0.7, aes(color = Strain), outlier.shape = NA) +
+     geom_jitter(aes(color = Strain), size = 1, stroke = 0.75, show.legend = T) +
+        scale_color_manual(
+       name = "Strain",
+       values = c(
+          "5D" = "#E63073", 
+          "AB" = "#82B7E6", 
+          "Casper" = "#FFC107", 
+          "TU" = "#44B5A2"
+        )
+      ) +
+     theme_bw() +
+     labs(y = "Total Worm Count") +
+    theme(custom_theme) +
+  stat_pvalue_manual(burden_strain_pval_df, 
+                     label = "p.label",
+                             y.position = c(20,17, 22.5,19, 21, 16),
+                             size = 1.5,
+                             label.size = 4,
+                             bracket.size = 0.5,
+                             hide.ns = F)
+worm_burden_by_strain
+ggsave(file = "worm_burden_by_strain.svg", plot = worm_burden_by_strain,width = 3.5, height =3, path=path)
+
+
+# Worm burden of exposed fish by DPE
+# Figure 1C
+worm_burden_by_dpe<- ps_exposed@sam_data %>%
+     ggplot(aes(y = Total.Worm.Count, x = DPE)) +
+     geom_boxplot(width = 0.7,  outlier.shape = NA) +
+     geom_jitter(aes(color = Strain), size = 1, stroke = 0.75, show.legend = T) +
+        scale_color_manual(
+       name = "Strain",
+       values = c(
+          "5D" = "#E63073", 
+          "AB" = "#82B7E6", 
+          "Casper" = "#FFC107", 
+          "TU" = "#44B5A2"
+        )
+      ) +
+     theme_bw() +
+     labs(y = "Total Worm Count") +
+    theme(custom_theme) +
+  stat_pvalue_manual(burden_anova_dpe_df, 
+                     label = "p.label",
+                             y.position = 17,
+                             size = 1.5,
+                             label.size = 4,
+                             bracket.size = 0.5,
+                             hide.ns = F)
+worm_burden_by_dpe
+ggsave(file = "worm_burden_by_dpe.svg", plot = worm_burden_by_dpe,width = 3.5, height =3, path=path)
+
+```
+
+#Alpha Diversity
+```{r}
+#facet wrapped boxplot of both alpha diversity metrics without treatment
+ps_long <- ps %>%
+  ps_calc_diversity(rank = "Genus", index = "shannon") %>%
+  ps_calc_richness(rank = "Genus", index = "observed") %>%
+  samdat_tbl() %>%
+  pivot_longer(cols = c("shannon_Genus", "observed_Genus"), names_to = "Metric", values_to = "Value") %>%
+  mutate(Metric = recode(Metric, 
+                         "shannon_Genus" = "Shannon Entropy", 
+                         "observed_Genus" = "# Observed Genera"))
+
+
+
+#Boxplot showing alpha diversity metrics for all samples with fill by exposure group
+# Figure S1A
+strain_alpha_boxplot <- ps_long %>%
+  ggplot(aes(y = Value, x = Strain)) +
+  
+  geom_boxplot(
+    width = 0.7,
+    aes(color = Strain),
+    outlier.shape = NA
+  ) +
+  
+  geom_jitter(
+    aes(
+      color = Strain,
+      fill  = ifelse(Treatment == "Control", "Control", Strain),
+      shape = Treatment
+    ),
+    size = 1,
+    stroke = 0.75,
+    show.legend = TRUE
+  ) +
+  
+  scale_fill_manual(
+    name = "Fill",
+    values = c(
+      "Control" = "white",
+      "5D"      = "#E63073",
+      "AB"      = "#82B7E6",
+      "Casper"  = "#FFC107",
+      "TU"      = "#44B5A2"
+    )
+  ) +
+  
+  scale_shape_manual(
+    name = "Exposure Group",
+    values = c("Control" = 21, "Exposed" = 21)
+  ) +
+  
+  scale_color_manual(
+    name = "Strain",
+    values = c(
+      "5D"     = "#E63073",
+      "AB"     = "#82B7E6",
+      "Casper" = "#FFC107",
+      "TU"     = "#44B5A2"
+    )
+  ) +
+  
+  guides(
+    fill = "none",
+    color = guide_legend(override.aes = list(shape = 16, size = 2)),
+    shape = guide_legend(
+      override.aes = list(
+        size  = 2,
+        shape = 21,
+        fill  = c("white", "black"),
+        color = "black"
+      )
+    )
+  ) +
+  
+  theme_bw() +
+  facet_wrap(~ Metric, scales = "free_y") +
+  theme(custom_theme) +
+  labs(y = "Alpha Diversity Metric Value") +
+  
+  stat_pvalue_manual(
+    alpha_strain_pval_df,
+    label = "p.label",
+    y.position = c(3.5, 100, 105),
+    size = 1.5,
+    label.size = 4,
+    bracket.size = 0.5,
+    hide.ns = TRUE
+  )
+ggsave(file = "strain_alpha_boxplot.svg", plot = strain_alpha_boxplot,width = 5, height =4, path=path)
+
+
+ps_control_long <- ps %>%
+  ps_filter(Treatment == "Control") %>%
+  ps_calc_diversity(rank = "Genus", index = "shannon") %>%
+  ps_calc_richness(rank = "Genus", index = "observed") %>%
+  samdat_tbl() %>%
+  pivot_longer(cols = c("shannon_Genus", "observed_Genus"), names_to = "Metric", values_to = "Value") %>%
+  mutate(Metric = recode(Metric, 
+                         "shannon_Genus" = "Shannon Entropy", 
+                         "observed_Genus" = "# Observed Genera"))
+
+#Alpha Diversity plots For Just Control Samples
+# Figure 2A
+strain_alpha_control_boxplot <- ps_control_long %>%
+  ggplot(aes(y = Value, x = Strain)) +
+  
+  # Boxplot outlines by strain
+  geom_boxplot(
+    width = 0.7,
+    aes(color = Strain),
+    outlier.shape = NA
+  ) +
+  
+  # Jittered points: outline = strain, fill = white (control), shape = 21
+  geom_jitter(
+    aes(
+      color = Strain,
+      shape = Treatment
+    ),
+    fill = "white",        # all control points unfilled
+    size = 1,
+    stroke = 0.75
+  ) +
+  
+  # Shapes for control group
+  scale_shape_manual(
+    name = "Exposure Group",
+    values = c("Control" = 21)
+  ) +
+  
+  # Strain outline colors
+  scale_color_manual(
+    name = "Strain",
+    values = c(
+      "5D"     = "#E63073",
+      "AB"     = "#82B7E6",
+      "Casper" = "#FFC107",
+      "TU"     = "#44B5A2"
+    )
+  ) +
+  
+  # Legend cleanup
+  guides(
+    fill = "none",
+    color = guide_legend(override.aes = list(shape = 16, size = 2)),
+    shape = guide_legend(
+      override.aes = list(
+        size  = 2,
+        shape = 21,
+        fill  = "white",
+        color = "black"
+      )
+    )
+  ) +
+  
+  theme_bw() +
+  facet_wrap(~ Metric, scales = "free_y") +
+  theme(custom_theme) +
+  labs(y = "Alpha Diversity Metric Value") +
+  
+  # Significance bars
+  stat_pvalue_manual(
+    alpha_control_pval_df,
+    label = "p.label",
+    y.position = c(
+      3.7, 4.15, 4.75,   # Shannon panel
+      3.5, 4.5, 3.85,    # Shannon panel additional?
+      100, 110, 126,     # Observed Genera panel
+      95, 120, 105       # Observed Genera panel additional?
+    ),
+    size = 1.5,
+    label.size = 4,
+    bracket.size = 0.5,
+    hide.ns = FALSE
+  )
+ggsave(file = "strain_alpha_control_boxplot.svg", plot = strain_alpha_control_boxplot,width = 5, height =4, path=path)
+
+
+#Now for the Exposed Samples only
+ps_exposed_long <- ps %>%
+  ps_filter(Treatment == "Exposed") %>%
+  ps_calc_diversity(rank = "Genus", index = "shannon") %>%
+  ps_calc_richness(rank = "Genus", index = "observed") %>%
+  samdat_tbl() %>%
+  pivot_longer(cols = c("shannon_Genus", "observed_Genus"), names_to = "Metric", values_to = "Value") %>%
+  mutate(Metric = recode(Metric, 
+                         "shannon_Genus" = "Shannon Entropy", 
+                         "observed_Genus" = "# Observed Genera"))
+
+
+#Alpha Diversity plots For Just exposed Samples
+# Figure 2B
+strain_alpha_exposed_boxplot <- ps_exposed_long %>%
+  ggplot(aes(y = Value, x = Strain)) +
+  
+  # Boxplot outlines by strain
+  geom_boxplot(
+    width = 0.7,
+    aes(color = Strain),
+    outlier.shape = NA
+  ) +
+  
+  # Jittered points: outline = strain, fill = strain color, shape = 21
+  geom_jitter(
+    aes(
+      color = Strain,
+      fill  = Strain,       # all exposed samples filled by strain
+      shape = Treatment
+    ),
+    size = 1,
+    stroke = 0.75
+  ) +
+  
+  # Fill colors for exposed samples
+  scale_fill_manual(
+    values = c(
+      "5D"     = "#E63073",
+      "AB"     = "#82B7E6",
+      "Casper" = "#FFC107",
+      "TU"     = "#44B5A2"
+    )
+  ) +
+  
+  # Shapes for exposed group
+  scale_shape_manual(
+    name = "Exposure Group",
+    values = c("Exposed" = 21)
+  ) +
+  
+  # Strain outline colors
+  scale_color_manual(
+    name = "Strain",
+    values = c(
+      "5D"     = "#E63073",
+      "AB"     = "#82B7E6",
+      "Casper" = "#FFC107",
+      "TU"     = "#44B5A2"
+    )
+  ) +
+  
+  # Legend cleanup
+  guides(
+    fill = "none",
+    color = guide_legend(override.aes = list(shape = 16, size = 2)),
+    shape = guide_legend(
+      override.aes = list(
+        size  = 2,
+        shape = 21,
+        fill  = "black",   # exposed = filled
+        color = "black"
+      )
+    )
+  ) +
+  
+  theme_bw() +
+  facet_wrap(~ Metric, scales = "free_y") +
+  theme(custom_theme) +
+  labs(y = "Alpha Diversity Metric Value") +
+  
+  # Significance bars
+  stat_pvalue_manual(
+    alpha_exposed_pval_df,
+    label = "p.label",
+    y.position = c(
+      3.7, 4.15, 4.75,   # Shannon panel
+      3.5, 4.5, 3.85,    # Shannon panel additional
+      100, 110, 126,     # Observed Genera panel
+      95, 120, 105       # Observed Genera panel additional
+    ),
+    size = 1.5,
+    label.size = 4,
+    bracket.size = 0.5,
+    hide.ns = FALSE
+  )
+ggsave(file = "strain_alpha_exposed_boxplot.svg", plot = strain_alpha_exposed_boxplot,width = 5, height =4, path=path)
+
+#facet wrapped boxplots for treatments showing both alpha metrics
+# Figure 3A
+treatment_boxplot <- ggplot(ps_long, aes(x = Treatment, y = Value)) +
+  
+  geom_boxplot(
+    width = 0.7,
+    outlier.shape = NA
+  ) +
+  
+  geom_jitter(
+    aes(
+      color = Strain,
+      fill  = ifelse(Treatment == "Control", "Control", Strain),
+      shape = Treatment
+    ),
+    size = 1,
+    stroke = 0.75,
+    show.legend = TRUE
+  ) +
+  
+  scale_color_manual(
+    name = "Strain",
+    values = c(
+      "5D"     = "#E63073",
+      "AB"     = "#82B7E6",
+      "Casper" = "#FFC107",
+      "TU"     = "#44B5A2"
+    )
+  ) +
+  
+  scale_fill_manual(
+    name = "Fill",
+    values = c(
+      "Control" = "white",
+      "5D"      = "#E63073",
+      "AB"      = "#82B7E6",
+      "Casper"  = "#FFC107",
+      "TU"      = "#44B5A2"
+    )
+  ) +
+  
+  scale_shape_manual(
+    name = "Exposure Group",
+    values = c("Control" = 21, "Exposed" = 21)
+  ) +
+  
+  guides(
+    fill = "none",
+    color = guide_legend(override.aes = list(shape = 16, size = 2)),
+    shape = guide_legend(
+      override.aes = list(
+        size  = 2,
+        shape = 21,
+        fill  = c("white", "black"),
+        color = "black"
+      )
+    )
+  ) +
+  
+  theme_bw() +
+  facet_wrap(~ Metric, scales = "free_y") +
+  theme(custom_theme) +
+  labs(y = "Alpha Diversity Metric Value") +
+  
+  stat_pvalue_manual(
+    alpha_treatment_pval_df,
+    label = "p.label",
+    y.position = c(3.75, 100),
+    size = 1.5,
+    label.size = 4,
+    bracket.size = 0.5,
+    hide.ns = FALSE
+  )
+
+ggsave(file = "treatment_boxplot.svg", plot = treatment_boxplot,width = 5, height =4, path=path)
+
+#Alpha Diversity by Worm Burden
+# Figure S2A
+shannon_worm_plot <- ps %>%
+  ps_calc_diversity(rank = "Genus", index = "shannon") %>%
+  ps_calc_richness(rank = "Genus", index = "observed") %>%
+  samdat_tbl() %>%
+  ggplot(aes(x = shannon_Genus, y = Total.Worm.Count)) +
+  
+  geom_point(
+    aes(
+      color = Strain,
+      fill  = ifelse(Treatment == "Control", "Control", Strain),
+      shape = Treatment
+    ),
+    size = 1,
+    stroke = 0.75
+  ) +
+  
+  scale_color_manual(
+    name = "Strain",
+    values = strain_colors
+  ) +
+  
+  scale_fill_manual(
+    name = "Fill",
+    values = c(
+      "Control" = "white",
+      "5D"      = "#E63073",
+      "AB"      = "#82B7E6",
+      "Casper"  = "#FFC107",
+      "TU"      = "#44B5A2"
+    )
+  ) +
+  
+  scale_shape_manual(
+    name = "Exposure Group",
+    values = shape_values
+  ) +
+  
+  guides(
+    fill = "none",
+    color = guide_legend(override.aes = list(shape = 16, size = 2)),
+    shape = guide_legend(override.aes = list(fill = c("white", "black")))
+  ) +
+  
+  theme(custom_theme) +
+  labs(x = "Shannon Entropy", y = "Total Worm Count") +
+  theme_bw(base_size = 12)
+ggsave(file = "shannon_worm_plot.svg", plot = shannon_worm_plot,width = 5, height =3, path=path)
+
+#Alpha Diversity by Worm Burden
+# Figure S2B
+observed_worm_plot <- ps %>%
+  ps_calc_diversity(rank = "Genus", index = "shannon") %>%
+  ps_calc_richness(rank = "Genus", index = "observed") %>%
+  samdat_tbl() %>%
+  ggplot(aes(x = observed_Genus, y = Total.Worm.Count)) +
+  
+  geom_point(
+    aes(
+      color = Strain,
+      fill  = ifelse(Treatment == "Control", "Control", Strain),
+      shape = Treatment
+    ),
+    size = 1,
+    stroke = 0.75
+  ) +
+  
+  scale_color_manual(
+    name = "Strain",
+    values = strain_colors
+  ) +
+  
+  scale_fill_manual(
+    name = "Fill",
+    values = c(
+      "Control" = "white",
+      "5D"      = "#E63073",
+      "AB"      = "#82B7E6",
+      "Casper"  = "#FFC107",
+      "TU"      = "#44B5A2"
+    )
+  ) +
+  
+  scale_shape_manual(
+    name = "Exposure Group",
+    values = shape_values
+  ) +
+  
+  guides(
+    fill = "none",
+    color = guide_legend(override.aes = list(shape = 16, size = 2)),
+    shape = guide_legend(override.aes = list(fill = c("white", "black")))
+  ) +
+  
+  theme(custom_theme) +
+  labs(x = "Observed Richness", y = "Total Worm Count") +
+  theme_bw(base_size = 12)
+
+ggsave(file = "observed_worm_plot.svg", plot = observed_worm_plot,width = 5, height =3, path=path)
+
+```
+
+#Beta Diversity
+```{r}
+# PCoA with just control samples
+# Figure 2D
+pcoa_control <- ps %>%
+  ps_filter(Treatment == "Control") %>%
+  tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+  tax_agg(rank = "Genus") %>%
+  dist_calc(dist = "bray") %>%
+  ord_calc(method = "PCoA") %>%
+  ord_plot(alpha = 0) +   # remove ghost points
+  
+  geom_point(
+    aes(color = Strain, shape = Treatment),
+    fill = "white",
+    size = 1,
+    stroke = 0.75
+  ) +
+  
+  scale_color_manual(values = strain_colors) +
+  scale_shape_manual(values = c("Control" = 21)) +
+  
+  labs(shape = "Exposure Group") +
+  
+  stat_ellipse(aes(color = Strain)) +
+  
+  coord_fixed(0.9) +
+  theme_bw() +
+  theme(custom_theme)
+ggsave(file = "pcoa_control.svg", , plot = pcoa_control, height = 4, width = 5, path = path)
+
+#Cropped PCoA plot
+# not included in the manuscript
+pcoa_all <- ps %>%
+  tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+  tax_agg(rank = "Genus") %>%
+  dist_calc(dist = "bray") %>%
+  ord_calc(method = "PCoA") %>%
+  ord_plot(alpha = 0) +   # <-- remove ghost points
+  
+  geom_point(
+    aes(
+      color = Strain,
+      fill  = ifelse(Treatment == "Control", "Control", as.character(Strain)),
+      shape = Treatment
+    ),
+    size = 1,
+    stroke = 0.75,
+    show.legend = TRUE
+  ) +
+  
+  scale_fill_manual(
+    name = "Fill",
+    values = c(
+      "Control" = "white",
+      "5D"      = "#E63073",
+      "AB"      = "#82B7E6",
+      "Casper"  = "#FFC107",
+      "TU"      = "#44B5A2"
+    )
+  ) +
+  
+  scale_color_manual(
+    name = "Strain",
+    values = c(
+      "5D"     = "#E63073",
+      "AB"     = "#82B7E6",
+      "Casper" = "#FFC107",
+      "TU"     = "#44B5A2"
+    )
+  ) +
+  
+  scale_shape_manual(
+    name = "Exposure Group",
+    values = c("Control" = 21, "Exposed" = 21)
+  ) +
+  
+  guides(
+    fill = "none",
+    color = guide_legend(override.aes = list(shape = 16, size = 2)),
+    shape = guide_legend(
+      override.aes = list(
+        size  = 2,
+        shape = 21,
+        fill  = c("white", "black"),
+        color = "black"
+      )
+    )
+  ) +
+  
+  scale_x_continuous(limits = c(-1.5, 1)) +
+  scale_y_continuous(limits = c(-2, 2)) +
+  
+  stat_ellipse(aes(color = Strain)) +
+  
+  theme_bw() +
+  coord_fixed(0.7) +
+  theme(custom_theme)
+ggsave(file = "pcoa_all.svg", , plot = pcoa_all, height = 4, width = 5, path = path)
+
+#PCoA plot with ellipses for Treatment dispersion
+# Figure 2C
+pcoa_all_treatment <- ps %>%
+  tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+  tax_agg(rank = "Genus") %>%
+  dist_calc(dist = "bray") %>%
+  ord_calc(method = "PCoA") %>%
+  ord_plot(alpha = 0) +   # <-- remove ghost points
+  
+  geom_point(
+    aes(
+      color = Strain,
+      fill  = ifelse(Treatment == "Control", "Control", as.character(Strain)),
+      shape = Treatment
+    ),
+    size = 1,
+    stroke = 0.75,
+    show.legend = TRUE
+  ) +
+  
+  scale_fill_manual(
+    name = "Fill",
+    values = c(
+      "Control" = "white",
+      "5D"      = "#E63073",
+      "AB"      = "#82B7E6",
+      "Casper"  = "#FFC107",
+      "TU"      = "#44B5A2"
+    )
+  ) +
+  
+  scale_color_manual(
+    name = "Strain",
+    values = c(
+      "5D"     = "#E63073",
+      "AB"     = "#82B7E6",
+      "Casper" = "#FFC107",
+      "TU"     = "#44B5A2"
+    )
+  ) +
+  
+  scale_shape_manual(
+    name = "Exposure Group",
+    values = c("Control" = 21, "Exposed" = 21)
+  ) +
+  
+  guides(
+    fill = "none",
+    color = guide_legend(override.aes = list(shape = 16, size = 2)),
+    shape = guide_legend(
+      override.aes = list(
+        size  = 2,
+        shape = 21,
+        fill  = c("white", "black"),
+        color = "black"
+      )
+    )
+  ) +
+  
+  stat_ellipse(aes(linetype = Treatment)) +
+  
+  
+scale_linetype_manual(
+  name = "Exposure Group",
+  values = c("Control" = "dashed", "Exposed" = "solid")
+) +
+
+  
+  theme_bw() +
+  coord_fixed(0.7) +
+  theme(custom_theme)
+ggsave(file = "pcoa_all_treatment.svg", , plot = pcoa_all_treatment, height = 4, width = 5, path = path)
+
+#PCoA plot now for the supplemental
+# Figure S3
+supplemental_pcoa_all <- pcoa_all <- ps %>%
+  tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+  tax_agg(rank = "Genus") %>%
+  dist_calc(dist = "bray") %>%
+  ord_calc(method = "PCoA") %>%
+  ord_plot(alpha = 0) +   # <-- remove ghost points
+  
+  geom_point(
+    aes(
+      color = Strain,
+      fill  = ifelse(Treatment == "Control", "Control", as.character(Strain)),
+      shape = Treatment
+    ),
+    size = 1,
+    stroke = 0.75,
+    show.legend = TRUE
+  ) +
+  
+  scale_fill_manual(
+    name = "Fill",
+    values = c(
+      "Control" = "white",
+      "5D"      = "#E63073",
+      "AB"      = "#82B7E6",
+      "Casper"  = "#FFC107",
+      "TU"      = "#44B5A2"
+    )
+  ) +
+  
+  scale_color_manual(
+    name = "Strain",
+    values = c(
+      "5D"     = "#E63073",
+      "AB"     = "#82B7E6",
+      "Casper" = "#FFC107",
+      "TU"     = "#44B5A2"
+    )
+  ) +
+  
+  scale_shape_manual(
+    name = "Exposure Group",
+    values = c("Control" = 21, "Exposed" = 21)
+  ) +
+  
+  guides(
+    fill = "none",
+    color = guide_legend(override.aes = list(shape = 16, size = 2)),
+    shape = guide_legend(
+      override.aes = list(
+        size  = 2,
+        shape = 21,
+        fill  = c("white", "black"),
+        color = "black"
+      )
+    )
+  ) +
+  
+  stat_ellipse(aes(color = Strain)) +
+  
+  theme_bw() +  
+  coord_fixed(0.9) +
+  theme(custom_theme)
+ggsave(file = "supplemental_pcoa_all.svg", , plot = supplemental_pcoa_all, height = 4, width = 5, path = path)
+
+#without strain colors, with fill by worm burden
+# Figure 3B
+pcoa_wormburden <- ps %>%
+  tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+  tax_agg(rank = "Genus") %>%
+  dist_calc(dist = "bray") %>%
+  ord_calc(method = "PCoA") %>%
+  ord_plot(alpha = 0.7) +
+
+  # Points filled by worm burden, shaped by treatment
+  geom_point(
+    aes(
+      fill = Total.Worm.Count,
+      shape = Treatment
+    ),
+    color = "black",
+    size = 2,
+    stroke = 0.3
+  ) +
+
+  # Continuous fill scale with 0 = white
+  scale_fill_gradient(
+    name = "Worm Burden",
+    low = "white",
+    high = "#1a1a1a"
+  ) +
+
+  # Shapes for treatment (but legend removed below)
+  scale_shape_manual(
+    values = c("Control" = 21, "Exposed" = 21)
+  ) +
+
+  # Remove exposure-group legend
+  guides(
+    shape = "none"
+  ) +
+
+  scale_x_continuous(limits = c(-1.5, 1)) +
+  scale_y_continuous(limits = c(-2, 2)) +
+
+  theme_classic(12) +
+  coord_fixed(0.7) +
+  theme_bw() +
+  theme(custom_theme)
+ggsave(file = "pcoa_wormburden.svg", , plot = pcoa_wormburden, height = 4, width = 5, path = path)
+
+#add DPE shapes
+# Figure 3B
+pcoa_dpe <- ps %>%
+  tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
+  tax_agg(rank = "Genus") %>%
+  dist_calc(dist = "bray") %>%
+  ord_calc(method = "PCoA") %>%
+  ord_plot(alpha = 0) +   # remove ghost points
+  
+  geom_point(
+    aes(
+      color = Strain,
+      fill  = ifelse(Treatment == "Control", "Control", as.character(Strain)),
+      shape = DPE,
+      alpha = Treatment        # <-- restores Exposure Group legend
+    ),
+    size = 1,
+    stroke = 0.75,
+    show.legend = TRUE
+  ) +
+  
+  scale_fill_manual(
+    name = "Fill",
+    values = c(
+      "Control" = "white",
+      "5D"      = "#E63073",
+      "AB"      = "#82B7E6",
+      "Casper"  = "#FFC107",
+      "TU"      = "#44B5A2"
+    )
+  ) +
+  
+  scale_color_manual(
+    name = "Strain",
+    values = c(
+      "5D"     = "#E63073",
+      "AB"     = "#82B7E6",
+      "Casper" = "#FFC107",
+      "TU"     = "#44B5A2"
+    )
+  ) +
+  
+  scale_shape_manual(
+    name = "DPE",
+    values = c("31" = 21, "44" = 24)
+  ) +
+  
+  scale_alpha_manual(
+    name = "Exposure Group",
+    values = c("Control" = 1, "Exposed" = 1)
+  ) +
+  
+  guides(
+    fill = "none",
+    color = guide_legend(override.aes = list(size = 2)),
+    shape = guide_legend(override.aes = list(size = 2)),
+    alpha = guide_legend(
+      override.aes = list(
+        shape = 21,
+        fill  = c("white", "black"),
+        color = "black",
+        size  = 2
+      )
+    )
+  ) +
+  
+  coord_fixed(0.7) +
+  theme_bw() +
+  theme(custom_theme)
+
+ggsave(file = "pcoa_dpe.svg", , plot = pcoa_dpe, height = 3.75, width = 5, path = path)
+```
+#Taxa
+```{r}
+#all_sig_results dataframe created in the MaAsLin2 Rmd
+
+#format the names
+all_sig_results <- all_sig_results %>%
+  mutate(feature = gsub("\\.", " ", feature))
+
+# modify taxa names of interest
+all_sig_results <- all_sig_results %>%
+  mutate(feature = ifelse(feature %in% c("Barnesiellaceae.Genus", "Cetobacterium", "Paraclostridium" , "Pseudomonas", "ZOR0006"), 
+                          paste0(feature, "*"), 
+                          feature))
+
+# Get unique features in the order they appear on the x-axis
+x_labels <- unique(all_sig_results$feature)
+
+# Create a named vector of HTML-styled labels
+label_colors <- sapply(x_labels, function(label) {
+  if (grepl("\\*", label)) {
+    paste0("<span style='color:red;'>", label, "</span>")
+  } else {
+    paste0("<span style='color:black;'>", label, "</span>")
+  }
+})
+names(label_colors) <- x_labels
+
+# Create the heatmap
+heatmap_plot <- ggplot(all_sig_results, aes(x = feature, y = Strain, fill = coef)) +
+  geom_tile() +
+  geom_text(aes(label = ifelse(qval < 0.1, "*", "")), size = 3, color = "black") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white") +
+  scale_x_discrete(labels = label_colors) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_markdown(angle = 45, hjust = 1, vjust = 1),
+    axis.text = element_text(size = 7),
+    axis.title = element_text(size = 14, face = "bold"),
+    axis.title.x = element_text(size = 14, face = "bold", margin = margin(t = -17)),
+    plot.title = element_text(size = 16, face = "bold"),
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 10),
+    legend.position = "bottom",
+    legend.justification = c(1, 0),
+    legend.box.just = "right",
+    legend.margin = margin(t = -45),
+    panel.grid.major = element_line(color = "white"),
+    panel.grid.minor = element_line(color = "gray95"),
+    panel.background = element_rect(color = "gray95"),
+    plot.background = element_rect(fill = "white"),
+  ) +
+  labs(x = "Taxa", y = "Strain")
+# Save the plot
+ggsave("diff_assoc_heatmap_wide.svg", plot = heatmap_plot, height = 4, width = 7.5, units = "in", path = path)
+
+# Create the table in long format with coefficients in the cells
+
+
+tax_table <- as.data.frame(ps@tax_table)
+
+# Clean the feature column if it contains asterisks
+all_sig_results_tax <- all_sig_results %>%
+  mutate(feature_clean = gsub("\\*", "", feature))
+
+# Create a named vector from tax_table: names are genera, values are families
+genus_to_family <- tax_table$Family
+names(genus_to_family) <- tax_table$Genus
+
+genus_to_order <- tax_table$Order
+names(genus_to_order) <- tax_table$Genus
+
+genus_to_class <- tax_table$Class
+names(genus_to_class) <- tax_table$Genus
+
+# Map the family to each feature
+all_sig_results_tax <- all_sig_results_tax %>%
+  mutate(Family = genus_to_family[feature_clean]) %>%
+  mutate(Order = genus_to_order[feature_clean]) %>%
+    mutate(Class = genus_to_class[feature_clean])
+
+# add faceting
+heatmap_plot_tax <- ggplot(all_sig_results_tax, aes(x = Strain, y = feature, fill = coef)) +
+  geom_tile() +
+  geom_text(aes(label = round(coef, 2)), size = 2.5, color = "black") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white") +
+  scale_y_discrete(labels = label_colors) +
+  facet_grid(Class ~ ., scales = "free_y", space = "free_y") +
+  theme_minimal() +
+  theme(
+    strip.text.y = element_text(angle = 0, hjust = 0, vjust = 1,  face = "bold"),  # Left-align strip text
+    axis.text.x = element_markdown(angle = 45, hjust = 1, vjust = 0.5),
+    axis.text.y = element_markdown(),
+    axis.text = element_text(size = 7),
+    axis.title = element_text(size = 14, face = "bold"),
+    axis.title.x = element_text(size = 14, face = "bold", margin = margin(t = 15)),
+    plot.title = element_text(size = 16, face = "bold"),
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 10),
+    legend.position = "bottom",
+    legend.justification = c(1.5, 0),
+    legend.box.just = "right",
+    legend.margin = margin(t = -35),
+    panel.grid.major = element_line(color = "white"),
+    panel.grid.minor = element_line(color = "gray90"),
+    panel.background = element_rect(color = "gray95"),
+    plot.background = element_rect(fill = "white")
+  ) +
+  labs(x = "Strain", y = "Taxa")
+
+
+# Save the plot
+# Figure 3C
+ggsave("diff_assoc_heatmap_tax.svg", plot = heatmap_plot_tax, height = 7.5, width = 7.5, units = "in", path = path)
+
+
+
+# MaAsLin Output for Strain associated taxa in just the control fish
+# Only control fish, Genus level, just Strain
+fit_data_control_genus_strain = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_control_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_control_genus_strain", 
+                    fixed_effects  = c("Strain"))
+View(fit_data_control_genus_strain$results)
+
+
+# Extract the dataframe
+df <- fit_data_control_genus_strain$results
+
+# Filter for qval < 0.25
+filtered_df <- df %>%
+  filter(qval < 0.25)
+
+# Create the transformed value
+filtered_df <- filtered_df %>%
+  mutate(transformed_value = -log(qval) * sign(coef))
+
+# Create the heatmap
+heatmap_strain_taxa <- ggplot(filtered_df, aes(x = feature, y = value, fill = transformed_value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(
+    low = "blue", mid = "white", high = "red",
+    midpoint = 0, name = "-log(qval) × sign(coef)"
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text.y = element_text(angle = 0, hjust = 0, vjust = 1,  face = "bold"),  # Left-align strip text
+    axis.text.x = element_markdown(angle = 45, hjust = 1),
+    axis.text.y = element_markdown(),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 14, face = "bold"),
+    axis.title.x = element_text(size = 14, face = "bold", margin = margin(t = 25)),
+    plot.title = element_text(size = 16, face = "bold"),
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 10),
+    legend.position = "right",
+    legend.justification = c(0, 0),
+    legend.box.just = "right",
+    legend.margin = margin(t = -35),
+    panel.grid.major = element_line(color = "white"),
+    panel.grid.minor = element_line(color = "gray90"),
+    panel.background = element_rect(color = "gray95"),
+    plot.background = element_rect(fill = "white")
+  ) +
+  labs(
+    x = "Taxa",
+    y = "Strain"
+  )
+
+# Save the plot
+# Figure S1B
+ggsave("heatmap_strain_taxa.svg", plot = heatmap_strain_taxa, height = 4.5, width = 7.5, units = "in", path = path)
+```
+```
