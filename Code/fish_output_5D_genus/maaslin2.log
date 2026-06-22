@@ -1,0 +1,229 @@
+2026-06-22 10:59:29.973815 INFO::Writing function arguments to log file
+2026-06-22 10:59:29.988445 DEBUG::Function arguments
+2026-06-22 10:59:29.994181 DEBUG::Output folder: fish_output_5D_genus
+2026-06-22 10:59:29.994796 DEBUG::Min Abundance: 0.000000
+2026-06-22 10:59:29.995301 DEBUG::Min Prevalence: 0.000000
+2026-06-22 10:59:29.995838 DEBUG::Normalization: TSS
+2026-06-22 10:59:29.996311 DEBUG::Transform: LOG
+2026-06-22 10:59:29.996808 DEBUG::Analysis method: LM
+2026-06-22 10:59:29.997258 DEBUG::Max significance: 0.250000
+2026-06-22 10:59:29.99773 DEBUG::Random effects:
+2026-06-22 10:59:29.998176 DEBUG::Fixed effects: Treatment
+2026-06-22 10:59:29.998634 DEBUG::Correction method: BH
+2026-06-22 10:59:29.999077 DEBUG::Standardize: TRUE
+2026-06-22 10:59:29.99992 DEBUG::Cores: 1
+2026-06-22 10:59:30.000426 INFO::Verifying options selected are valid
+2026-06-22 10:59:30.08165 INFO::Determining format of input files
+2026-06-22 10:59:30.083581 INFO::Input format is data samples as rows and metadata samples as rows
+2026-06-22 10:59:30.085824 DEBUG::The following samples were found to have features but no metadata. They will be removed. ISF277,ISF278,ISF279,ISF281,ISF283,ISF285,ISF288,ISF289,ISF290,ISF296,ISF297,ISF300,ISF301,ISF302,ISF305,ISF306,ISF307,ISF314,ISF315,ISF547,ISF341,ISF343,ISF345,ISF346,ISF349,ISF352,ISF353,ISF354,ISF358,ISF359,ISF360,ISF363,ISF366,ISF368,ISF371,ISF372,ISF552,ISF375,ISF376,ISF381,ISF383,ISF384,ISF385,ISF389,ISF392,ISF418,ISF421,ISF422,ISF427,ISF428,ISF429,ISF432,ISF436,ISF438,ISF439,ISF441,ISF442,ISF445,ISF446,ISF447,ISF448,ISF451,ISF452,ISF456,ISF457,ISF459,ISF480,ISF481,ISF483,ISF484,ISF486,ISF490,ISF491,ISF493,ISF494,ISF499,ISF501,ISF502,ISF505,ISF507,ISF508,ISF509,ISF510,ISF511,ISF513,ISF516,ISF517,ISF519,ISF521,ISF342
+2026-06-22 10:59:30.086606 DEBUG::A total of 35 samples were found in both the data and metadata
+2026-06-22 10:59:30.087241 DEBUG::Reordering data/metadata to use same sample ordering
+2026-06-22 10:59:30.088951 INFO::Formula for fixed effects: expr ~  Treatment
+2026-06-22 10:59:30.091907 INFO::Filter data based on min abundance and min prevalence
+2026-06-22 10:59:30.093603 INFO::Total samples in data: 35
+2026-06-22 10:59:30.094997 INFO::Min samples required with min abundance for a feature not to be filtered: 0.000000
+2026-06-22 10:59:30.098227 INFO::Total filtered features: 87
+2026-06-22 10:59:30.099849 INFO::Filtered feature names from abundance and prevalence filtering: Clostridium_sensu_stricto_3, Polymorphobacter, Macellibacteroides, Bradyrhizobium, Xanthobacteraceae.Genus, Sphingopyxis, Nordella, Enhydrobacter, ASV172, ASV174, ASV175, ASV176, ASV177, ASV185, ASV190, ASV192, ASV193, ASV194, ASV196, ASV198, ASV200, ASV201, ASV202, JG30.KF.CM45.Genus, ASV206, ASV216, ASV217, ASV218, ASV220, ASV225, ASV227, ASV229, Undibacterium, Neochlamydia, Chthoniobacter, ASV243, ASV245, ASV247, ASV250, Aminobacter, ASV259, ASV263, ASV264, Novosphingobium, Brevifollis, Fluviicoccus, ASV273, Devosia, Pirellulaceae.Genus, Cloacibacterium, Rheinheimera, ASV293, Chitinimonas, Nannocystis, Micavibrionales.Genus, Microtrichales.Genus, Burkholderia.Caballeronia.Paraburkholderia, ASV311, OPB56.Genus, ASV315, Aeribacillus, Haliscomenobacter, Haliangium, Pajaroellobacter, Sphingobium, Bacteroidia.Genus, Anoxybacillus, Lachnoclostridium_5, Holosporaceae.Genus, Elstera, Achromobacter, OM190.Genus, Oligoflexaceae.Genus, Labrys, Nitrospira, Nocardioides, Tepidiphilus, Rickettsiaceae.Genus, Neisseriaceae.Genus, A0839.Genus, WPS.2.Genus, Runella, EV818SWSAP88.Genus, Elizabethkingia, Conexibacter, Steroidobacter, Acetobacteraceae.Genus
+2026-06-22 10:59:30.106865 INFO::Total filtered features with variance filtering: 0
+2026-06-22 10:59:30.109271 INFO::Filtered feature names from variance filtering:
+2026-06-22 10:59:30.11089 INFO::Running selected normalization method: TSS
+2026-06-22 10:59:30.115484 INFO::Applying z-score to standardize continuous metadata
+2026-06-22 10:59:30.122931 INFO::Running selected transform method: LOG
+2026-06-22 10:59:30.12718 INFO::Running selected analysis method: LM
+2026-06-22 10:59:30.196421 INFO::Fitting model to feature number 1, Cetobacterium
+2026-06-22 10:59:30.329818 INFO::Fitting model to feature number 2, Aeromonas
+2026-06-22 10:59:30.353119 INFO::Fitting model to feature number 3, Plesiomonas
+2026-06-22 10:59:30.35677 INFO::Fitting model to feature number 4, Barnesiellaceae.Genus
+2026-06-22 10:59:30.363025 INFO::Fitting model to feature number 5, Vibrio
+2026-06-22 10:59:30.36883 INFO::Fitting model to feature number 6, ZOR0006
+2026-06-22 10:59:30.376447 INFO::Fitting model to feature number 7, Mycoplasma
+2026-06-22 10:59:30.422761 INFO::Fitting model to feature number 8, Staphylococcus
+2026-06-22 10:59:30.763167 INFO::Fitting model to feature number 9, Mycobacterium
+2026-06-22 10:59:30.766317 INFO::Fitting model to feature number 10, Acinetobacter
+2026-06-22 10:59:30.770456 INFO::Fitting model to feature number 11, Gordonia
+2026-06-22 10:59:30.773486 INFO::Fitting model to feature number 12, Crenobacter
+2026-06-22 10:59:30.78242 INFO::Fitting model to feature number 13, Shewanella
+2026-06-22 10:59:30.788382 INFO::Fitting model to feature number 14, Gammaproteobacteria.Genus
+2026-06-22 10:59:30.795085 INFO::Fitting model to feature number 15, Paraclostridium
+2026-06-22 10:59:30.799437 INFO::Fitting model to feature number 16, Pseudomonas
+2026-06-22 10:59:30.804231 INFO::Fitting model to feature number 17, Flavobacterium
+2026-06-22 10:59:30.807032 INFO::Fitting model to feature number 18, Burkholderiaceae.Genus
+2026-06-22 10:59:31.10627 INFO::Fitting model to feature number 19, Paucibacter
+2026-06-22 10:59:31.110561 INFO::Fitting model to feature number 20, Phreatobacter
+2026-06-22 10:59:31.115389 INFO::Fitting model to feature number 21, Nocardia
+2026-06-22 10:59:31.118542 INFO::Fitting model to feature number 22, Gemmataceae.Genus
+2026-06-22 10:59:31.122512 INFO::Fitting model to feature number 23, Pseudorhodobacter
+2026-06-22 10:59:31.125852 INFO::Fitting model to feature number 24, Bosea
+2026-06-22 10:59:31.131254 INFO::Fitting model to feature number 25, Rhizobiales_Incertae_Sedis.Genus
+2026-06-22 10:59:31.134911 INFO::Fitting model to feature number 26, Rhizobiales.Genus
+2026-06-22 10:59:31.139158 INFO::Fitting model to feature number 27, Brevibacterium
+2026-06-22 10:59:31.142326 INFO::Fitting model to feature number 28, Glutamicibacter
+2026-06-22 10:59:31.148203 INFO::Fitting model to feature number 29, Chitinibacter
+2026-06-22 10:59:31.44499 INFO::Fitting model to feature number 30, Chitinibacteraceae.Genus
+2026-06-22 10:59:31.449206 INFO::Fitting model to feature number 31, Gemmobacter
+2026-06-22 10:59:31.452182 INFO::Fitting model to feature number 32, Beijerinckiaceae.Genus
+2026-06-22 10:59:31.456032 INFO::Fitting model to feature number 33, Citrobacter
+2026-06-22 10:59:31.460719 INFO::Fitting model to feature number 34, Obscuribacterales.Genus
+2026-06-22 10:59:31.465449 INFO::Fitting model to feature number 35, Rhodobacter
+2026-06-22 10:59:31.469342 INFO::Fitting model to feature number 36, Exiguobacterium
+2026-06-22 10:59:31.476586 INFO::Fitting model to feature number 37, Betaproteobacteriales_Incertae_Sedis.Genus
+2026-06-22 10:59:31.48194 INFO::Fitting model to feature number 38, Fluviicola
+2026-06-22 10:59:31.48712 INFO::Fitting model to feature number 39, Defluviimonas
+2026-06-22 10:59:31.48998 INFO::Fitting model to feature number 40, Luteimonas
+2026-06-22 10:59:31.791898 INFO::Fitting model to feature number 41, Allorhizobium.Neorhizobium.Pararhizobium.Rhizobium
+2026-06-22 10:59:31.795385 INFO::Fitting model to feature number 42, Pseudorhodoplanes
+2026-06-22 10:59:31.800481 INFO::Fitting model to feature number 43, Pseudochrobactrum
+2026-06-22 10:59:31.803717 INFO::Fitting model to feature number 44, Rhodococcus
+2026-06-22 10:59:31.808615 INFO::Fitting model to feature number 45, Singulisphaera
+2026-06-22 10:59:31.811969 INFO::Fitting model to feature number 46, Ensifer
+2026-06-22 10:59:31.816258 INFO::Fitting model to feature number 47, Candidatus_Protochlamydia
+2026-06-22 10:59:31.819508 INFO::Fitting model to feature number 48, Reyranella
+2026-06-22 10:59:31.824993 INFO::Fitting model to feature number 49, Geobacillus
+2026-06-22 10:59:31.829403 INFO::Fitting model to feature number 50, Tabrizicola
+2026-06-22 10:59:31.834613 INFO::Fitting model to feature number 51, Microscillaceae.Genus
+2026-06-22 10:59:32.480937 INFO::Fitting model to feature number 52, Shinella
+2026-06-22 10:59:32.750841 INFO::Fitting model to feature number 53, Smaragdicoccus
+2026-06-22 10:59:32.753885 INFO::Fitting model to feature number 54, Verrucomicrobiae.Genus
+2026-06-22 10:59:32.759907 INFO::Fitting model to feature number 55, Simkaniaceae.Genus
+2026-06-22 10:59:32.763054 INFO::Fitting model to feature number 56, Parachlamydiaceae.Genus
+2026-06-22 10:59:32.770472 INFO::Fitting model to feature number 57, Fimbriiglobus
+2026-06-22 10:59:32.773848 INFO::Fitting model to feature number 58, Chlamydiales.Genus
+2026-06-22 10:59:32.779817 INFO::Fitting model to feature number 59, env.OPS_17.Genus
+2026-06-22 10:59:32.784159 INFO::Fitting model to feature number 60, Unknown_Family.Genus
+2026-06-22 10:59:32.788741 INFO::Fitting model to feature number 61, Meiothermus
+2026-06-22 10:59:32.79836 INFO::Fitting model to feature number 62, PeM15.Genus
+2026-06-22 10:59:32.804313 INFO::Fitting model to feature number 63, Delftia
+2026-06-22 10:59:32.808072 INFO::Fitting model to feature number 64, Rhodopseudomonas
+2026-06-22 10:59:32.815626 INFO::Fitting model to feature number 65, Mesorhizobium
+2026-06-22 10:59:32.820343 INFO::Fitting model to feature number 66, Rhizobiaceae.Genus
+2026-06-22 10:59:32.826663 INFO::Fitting model to feature number 67, Aquicella
+2026-06-22 10:59:32.831379 INFO::Fitting model to feature number 68, SH.PL14
+2026-06-22 10:59:32.837058 INFO::Fitting model to feature number 69, ASV131
+2026-06-22 10:59:32.840068 INFO::Fitting model to feature number 70, Dinghuibacter
+2026-06-22 10:59:32.846685 INFO::Fitting model to feature number 71, Deltaproteobacteria.Genus
+2026-06-22 10:59:32.863583 INFO::Fitting model to feature number 72, ASV135
+2026-06-22 10:59:32.878142 INFO::Fitting model to feature number 73, Pedosphaeraceae.Genus
+2026-06-22 10:59:32.882504 INFO::Fitting model to feature number 74, Desulfarculaceae.Genus
+2026-06-22 10:59:32.89461 INFO::Fitting model to feature number 75, Legionella
+2026-06-22 10:59:32.899391 INFO::Fitting model to feature number 76, Enterococcus
+2026-06-22 10:59:32.904433 INFO::Fitting model to feature number 77, Candidatus_Alysiosphaera
+2026-06-22 10:59:32.908037 INFO::Fitting model to feature number 78, Pir4_lineage
+2026-06-22 10:59:32.914458 INFO::Fitting model to feature number 79, Coxiella
+2026-06-22 10:59:32.918468 INFO::Fitting model to feature number 80, Planctomycetales.Genus
+2026-06-22 10:59:32.922681 INFO::Fitting model to feature number 81, Pirellula
+2026-06-22 10:59:32.925876 INFO::Fitting model to feature number 82, Prevotella_7
+2026-06-22 10:59:32.933611 INFO::Fitting model to feature number 83, Bacteria.Genus
+2026-06-22 10:59:32.937429 INFO::Fitting model to feature number 84, Streptococcus
+2026-06-22 10:59:32.943509 INFO::Fitting model to feature number 85, Candidatus_Ovatusbacter
+2026-06-22 10:59:32.946887 INFO::Fitting model to feature number 86, ASV163
+2026-06-22 10:59:34.456597 INFO::Fitting model to feature number 87, X67.14.Genus
+2026-06-22 10:59:34.460355 INFO::Fitting model to feature number 88, ASV169
+2026-06-22 10:59:34.466722 INFO::Fitting model to feature number 89, Thermus
+2026-06-22 10:59:34.470257 INFO::Fitting model to feature number 90, Flavihumibacter
+2026-06-22 10:59:34.475428 INFO::Fitting model to feature number 91, Proteobacteria.Genus
+2026-06-22 10:59:34.479326 INFO::Fitting model to feature number 92, Faecalibaculum
+2026-06-22 10:59:34.484341 INFO::Fitting model to feature number 93, Sphingomonadaceae.Genus
+2026-06-22 10:59:34.49002 INFO::Fitting model to feature number 94, Brucella
+2026-06-22 10:59:34.496984 INFO::Fitting model to feature number 95, Iamia
+2026-06-22 10:59:34.500556 INFO::Fitting model to feature number 96, Clostridium_sensu_stricto_9
+2026-06-22 10:59:34.505582 INFO::Fitting model to feature number 97, Gemmata
+2026-06-22 10:59:34.509437 INFO::Fitting model to feature number 98, Saprospiraceae.Genus
+2026-06-22 10:59:34.514578 INFO::Fitting model to feature number 99, Afipia
+2026-06-22 10:59:34.518274 INFO::Fitting model to feature number 100, Deinococcus
+2026-06-22 10:59:34.523471 INFO::Fitting model to feature number 101, Rubrivivax
+2026-06-22 10:59:34.526997 INFO::Fitting model to feature number 102, Babeliaceae.Genus
+2026-06-22 10:59:34.53125 INFO::Fitting model to feature number 103, Rhodovastum
+2026-06-22 10:59:34.535138 INFO::Fitting model to feature number 104, Pedomicrobium
+2026-06-22 10:59:34.539594 INFO::Fitting model to feature number 105, Nakamurella
+2026-06-22 10:59:34.543562 INFO::Fitting model to feature number 106, Caedibacter
+2026-06-22 10:59:35.140268 INFO::Fitting model to feature number 107, CL500.3
+2026-06-22 10:59:35.14424 INFO::Fitting model to feature number 108, Chitinophagaceae.Genus
+2026-06-22 10:59:35.150175 INFO::Fitting model to feature number 109, Candidatus_Finniella
+2026-06-22 10:59:35.153311 INFO::Fitting model to feature number 110, Cellvibrio
+2026-06-22 10:59:35.158603 INFO::Fitting model to feature number 111, Leucobacter
+2026-06-22 10:59:35.163533 INFO::Fitting model to feature number 112, ASV246
+2026-06-22 10:59:35.168174 INFO::Fitting model to feature number 113, Candidatus_Megaira
+2026-06-22 10:59:35.17215 INFO::Fitting model to feature number 114, Cytophagales.Genus
+2026-06-22 10:59:35.178918 INFO::Fitting model to feature number 115, Romboutsia
+2026-06-22 10:59:35.182601 INFO::Fitting model to feature number 116, Vampirovibrionales.Genus
+2026-06-22 10:59:35.187318 INFO::Fitting model to feature number 117, cvE6.Genus
+2026-06-22 10:59:35.233603 INFO::Fitting model to feature number 118, Hydrogenophaga
+2026-06-22 10:59:35.243361 INFO::Fitting model to feature number 119, Stenotrophomonas
+2026-06-22 10:59:35.247672 INFO::Fitting model to feature number 120, Veillonella
+2026-06-22 10:59:35.253368 INFO::Fitting model to feature number 121, Azospira
+2026-06-22 10:59:35.256417 INFO::Fitting model to feature number 122, RCP2.54.Genus
+2026-06-22 10:59:35.261871 INFO::Fitting model to feature number 123, Prevotella_6
+2026-06-22 10:59:35.264656 INFO::Fitting model to feature number 124, IMCC26207
+2026-06-22 10:59:35.268817 INFO::Fitting model to feature number 125, Ottowia
+2026-06-22 10:59:35.27326 INFO::Fitting model to feature number 126, Chryseobacterium
+2026-06-22 10:59:35.278266 INFO::Fitting model to feature number 127, Fusobacterium
+2026-06-22 10:59:35.282918 INFO::Fitting model to feature number 128, Roseomonas
+2026-06-22 10:59:35.287458 INFO::Fitting model to feature number 129, Xylophilus
+2026-06-22 10:59:35.290186 INFO::Fitting model to feature number 130, Ideonella
+2026-06-22 10:59:35.295303 INFO::Fitting model to feature number 131, Bdellovibrio
+2026-06-22 10:59:35.299553 INFO::Fitting model to feature number 132, ASV323
+2026-06-22 10:59:35.30511 INFO::Fitting model to feature number 133, Lachnospiraceae_NK4A136_group
+2026-06-22 10:59:35.308855 INFO::Fitting model to feature number 134, Verrucomicrobiaceae.Genus
+2026-06-22 10:59:35.314416 INFO::Fitting model to feature number 135, Rickettsia
+2026-06-22 10:59:35.317815 INFO::Fitting model to feature number 136, Gaiellales.Genus
+2026-06-22 10:59:35.323153 INFO::Fitting model to feature number 137, Prevotella
+2026-06-22 10:59:35.326119 INFO::Fitting model to feature number 138, Herpetosiphon
+2026-06-22 10:59:35.33035 INFO::Fitting model to feature number 139, Leptotrichia
+2026-06-22 10:59:35.33409 INFO::Fitting model to feature number 140, X0319.6G20.Genus
+2026-06-22 10:59:35.339739 INFO::Fitting model to feature number 141, Haemophilus
+2026-06-22 10:59:35.343129 INFO::Fitting model to feature number 142, Thermoanaerobacterium
+2026-06-22 10:59:35.347671 INFO::Fitting model to feature number 143, ASV385
+2026-06-22 10:59:35.351401 INFO::Fitting model to feature number 144, Paracoccus
+2026-06-22 10:59:35.357238 INFO::Fitting model to feature number 145, Lactobacillus
+2026-06-22 10:59:35.360285 INFO::Fitting model to feature number 146, Blfdi19.Genus
+2026-06-22 10:59:35.366793 INFO::Fitting model to feature number 147, Candidatus_Paracaedibacter
+2026-06-22 10:59:35.370673 INFO::Fitting model to feature number 148, Alloprevotella
+2026-06-22 10:59:35.381452 INFO::Fitting model to feature number 149, Corynebacterium_1
+2026-06-22 10:59:35.968908 INFO::Fitting model to feature number 150, Myxococcales.Genus
+2026-06-22 10:59:35.975114 INFO::Fitting model to feature number 151, Hyphomicrobium
+2026-06-22 10:59:35.981533 INFO::Fitting model to feature number 152, Rothia
+2026-06-22 10:59:35.987739 INFO::Fitting model to feature number 153, Muribaculaceae.Genus
+2026-06-22 10:59:35.991423 INFO::Fitting model to feature number 154, Gemella
+2026-06-22 10:59:35.997875 INFO::Fitting model to feature number 155, Babeliales.Genus
+2026-06-22 10:59:36.002486 INFO::Fitting model to feature number 156, Paracaedibacteraceae.Genus
+2026-06-22 10:59:36.00718 INFO::Fitting model to feature number 157, Lacunisphaera
+2026-06-22 10:59:36.011794 INFO::Fitting model to feature number 158, Scardovia
+2026-06-22 10:59:36.043458 INFO::Counting total values for each feature
+2026-06-22 10:59:36.051145 INFO::Writing filtered data to file fish_output_5D_genus/features/filtered_data.tsv
+2026-06-22 10:59:36.059195 INFO::Writing filtered, normalized data to file fish_output_5D_genus/features/filtered_data_norm.tsv
+2026-06-22 10:59:36.068776 INFO::Writing filtered, normalized, transformed data to file fish_output_5D_genus/features/filtered_data_norm_transformed.tsv
+2026-06-22 10:59:36.10855 INFO::Writing residuals to file fish_output_5D_genus/fits/residuals.rds
+2026-06-22 10:59:36.112148 INFO::Writing fitted values to file fish_output_5D_genus/fits/fitted.rds
+2026-06-22 10:59:36.121538 INFO::Writing all results to file (ordered by increasing q-values): fish_output_5D_genus/all_results.tsv
+2026-06-22 10:59:36.126976 INFO::Writing the significant results (those which are less than or equal to the threshold of 0.250000 ) to file (ordered by increasing q-values): fish_output_5D_genus/significant_results.tsv
+2026-06-22 10:59:36.131488 INFO::Writing heatmap of significant results to file: fish_output_5D_genus/heatmap.pdf
+2026-06-22 10:59:36.16054 INFO::Writing association plots (one for each significant association) to output folder: fish_output_5D_genus
+2026-06-22 10:59:36.165451 INFO::Plotting associations from most to least significant, grouped by metadata
+2026-06-22 10:59:36.167651 INFO::Plotting data for metadata number 1, Treatment
+2026-06-22 10:59:37.081404 INFO::Creating boxplot for categorical data, Treatment vs Paraclostridium
+2026-06-22 10:59:38.057764 INFO::Creating boxplot for categorical data, Treatment vs Barnesiellaceae.Genus
+2026-06-22 10:59:38.243133 INFO::Creating boxplot for categorical data, Treatment vs Aeromonas
+2026-06-22 10:59:39.018506 INFO::Creating boxplot for categorical data, Treatment vs ZOR0006
+2026-06-22 10:59:39.11804 INFO::Creating boxplot for categorical data, Treatment vs Flavobacterium
+2026-06-22 10:59:39.887246 INFO::Creating boxplot for categorical data, Treatment vs Verrucomicrobiae.Genus
+2026-06-22 10:59:40.042986 INFO::Creating boxplot for categorical data, Treatment vs Chitinibacteraceae.Genus
+2026-06-22 10:59:40.561852 INFO::Creating boxplot for categorical data, Treatment vs Shinella
+2026-06-22 10:59:41.251886 INFO::Creating boxplot for categorical data, Treatment vs Mycoplasma
+2026-06-22 10:59:41.436202 INFO::Creating boxplot for categorical data, Treatment vs Pseudorhodobacter
+2026-06-22 10:59:42.164108 INFO::Creating boxplot for categorical data, Treatment vs Nocardia
+2026-06-22 10:59:42.261746 INFO::Creating boxplot for categorical data, Treatment vs Citrobacter
+2026-06-22 10:59:42.388326 INFO::Creating boxplot for categorical data, Treatment vs Gammaproteobacteria.Genus
+2026-06-22 10:59:42.935073 INFO::Creating boxplot for categorical data, Treatment vs Cetobacterium
+2026-06-22 10:59:43.432668 INFO::Creating boxplot for categorical data, Treatment vs Shewanella
+2026-06-22 10:59:44.195577 INFO::Creating boxplot for categorical data, Treatment vs Gordonia
+2026-06-22 10:59:44.316878 INFO::Creating boxplot for categorical data, Treatment vs Burkholderiaceae.Genus
+2026-06-22 10:59:45.679991 INFO::Creating boxplot for categorical data, Treatment vs Plesiomonas
+2026-06-22 10:59:45.776727 INFO::Creating boxplot for categorical data, Treatment vs ASV135
+2026-06-22 10:59:45.875493 INFO::Creating boxplot for categorical data, Treatment vs Faecalibaculum
+2026-06-22 10:59:46.035287 INFO::Creating boxplot for categorical data, Treatment vs Chitinibacter
+2026-06-22 10:59:46.709396 INFO::Creating boxplot for categorical data, Treatment vs Pseudochrobactrum
+2026-06-22 10:59:47.217952 INFO::Creating boxplot for categorical data, Treatment vs Vibrio
+2026-06-22 10:59:47.31407 INFO::Creating boxplot for categorical data, Treatment vs Fluviicola
+2026-06-22 10:59:48.188018 INFO::Creating boxplot for categorical data, Treatment vs Pseudomonas
+2026-06-22 10:59:48.295216 INFO::Creating boxplot for categorical data, Treatment vs Exiguobacterium
+2026-06-22 10:59:48.403132 INFO::Creating boxplot for categorical data, Treatment vs Crenobacter

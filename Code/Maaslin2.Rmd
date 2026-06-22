@@ -1,0 +1,883 @@
+---
+title: "Maaslin2 Analysis"
+author: "Emilee Lance"
+date: "2024-06-12"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(Maaslin2)
+library(microViz)
+library(dplyr)
+library(ggplot2)
+```
+
+```{r set-up}
+getwd()
+setwd("C:/Users/emile/OneDrive - Oregon State University/Sharpton Lab/Interstrain_Zebrafish_Gut_Microbiome/code")
+#Pull files from the ps_object
+ps <- readRDS("ps", file = "C:/Users/emile/OneDrive - Oregon State University/Sharpton Lab/Interstrain_Zebrafish_Gut_Microbiome/Data/ps_object.rds")
+#Metadata
+df_input_metadata <- as.data.frame(as.matrix(ps@sam_data))
+df_input_metadata$"Strain_Treatment" <- paste(df_input_metadata$Strain, df_input_metadata$Treatment, sep = "_") #create interaction term
+df_input_metadata$Total.Worm.Count <- as.numeric(df_input_metadata$Total.Worm.Count) #convert worm count to numeric
+#Set references for all variables
+df_input_metadata$Strain = factor(df_input_metadata$Strain,
+                                              levels = c("AB", "5D", "Casper", "TU"))
+df_input_metadata$DPE = factor(df_input_metadata$DPE,
+                                              levels = c("31", "44"))
+df_input_metadata$Pathology.Results = factor(df_input_metadata$Pathology.Results,
+                                              levels = c("negative", "positive"))
+df_input_metadata$Strain_Treatment = factor(df_input_metadata$Strain_Treatment,
+                                              levels = c("AB_Control", "AB_Exposed", "5D_Control", "5D_Exposed", 
+                                                         "Casper_Control", "Casper_Exposed", "TU_Control", "TU_Exposed"))
+View(df_input_metadata)
+#subset metadata
+df_control_metadata <- subset(df_input_metadata, Treatment == "Control")
+df_exposed_metadata <- subset(df_input_metadata, Treatment == "Exposed")
+df_positive_metadata <- subset(df_input_metadata, Pathology.Results == "positive")
+df_5D_metadata <- subset(df_input_metadata, Strain =="5D")
+df_5D_control_metadata <- subset(df_5D_metadata, Treatment == "Control")
+df_5D_exposed_metadata <- subset(df_5D_metadata, Treatment == "Exposed")
+df_5D_31_metadata <- subset(df_5D_metadata, DPE == "31")
+df_5D_44_metadata <- subset(df_5D_metadata, DPE == "44")
+df_AB_metadata <- subset(df_input_metadata, Strain == "AB")
+df_AB_control_metadata <- subset(df_AB_metadata, Treatment == "Control")
+df_AB_exposed_metadata <- subset(df_AB_metadata, Treatment == "Exposed")
+df_AB_31_metadata <- subset(df_AB_metadata, DPE == "31")
+df_AB_44_metadata <- subset(df_AB_metadata, DPE == "44")
+df_Casper_metadata <- subset(df_input_metadata, Strain =="Casper")
+df_Casper_control_metadata <- subset(df_Casper_metadata, Treatment == "Control")
+df_Casper_exposed_metadata <- subset(df_Casper_metadata, Treatment == "Exposed")
+df_Casper_31_metadata <- subset(df_Casper_metadata, DPE == "31")
+df_Casper_44_metadata <- subset(df_Casper_metadata, DPE == "44")
+df_TU_metadata <- subset(df_input_metadata, Strain =="TU")
+df_TU_control_metadata <- subset(df_TU_metadata, Treatment == "Control")
+df_TU_exposed_metadata <- subset(df_TU_metadata, Treatment == "Exposed")
+df_TU_31_metadata <- subset(df_TU_metadata, DPE == "31")
+df_TU_44_metadata <- subset(df_TU_metadata, DPE == "44")
+
+#Species level OTU
+ps <- ps %>%
+     tax_agg(rank = "Species")
+df_input_data_species <- as.data.frame(as.matrix(ps@otu_table))
+View(df_input_data_species)
+#Genus level OTUs
+ps <- ps %>%
+     tax_agg(rank = "Genus")
+df_input_data_genus <- as.data.frame(as.matrix(ps@otu_table))
+
+```
+
+# Run MaAsLin2 on all fish, species level
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_all_species = Maaslin2(input_data = df_input_data_species, 
+                    input_metadata = df_input_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_all_species", 
+                    fixed_effects  = c("Strain", "Treatment", "Strain_Treatment", "Total.Worm.Count"))
+View(fit_data_all_species$results)
+```
+
+#All fish, Genus level, Strain + Treatment + Worm Count
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_all_genus = Maaslin2(input_data = df_input_data_genus, 
+                    input_metadata = df_input_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_all_genus", 
+                    fixed_effects  = c("Strain", "Treatment", "Strain_Treatment", "Total.Worm.Count"))
+View(fit_data_all_genus$results)
+```
+
+#All fish, Genus level, Strain
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_all_genus_strain = Maaslin2(input_data = df_input_data_genus, 
+                    input_metadata = df_input_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_all_genus_strain", 
+                    fixed_effects  = c("Strain"))
+View(fit_data_all_genus_strain$results)
+```
+
+#All fish, Genus level, Strain
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_all_genus_strain_dpe = Maaslin2(input_data = df_input_data_genus, 
+                    input_metadata = df_input_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_all_genus_strain_dpe", 
+                    fixed_effects  = c("Strain", "DPE"))
+View(fit_data_all_genus_strain_dpe$results)
+```
+
+#All fish, Genus level, no worms
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_all_genus_noworms = Maaslin2(input_data = df_input_data_genus, 
+                    input_metadata = df_input_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_all_genus_noworms", 
+                    fixed_effects  = c("Strain", "Treatment", "Strain_Treatment"))
+View(fit_data_all_genus_noworms$results)
+```
+
+#All fish, Genus level, worms (presence and association)
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_genus_worms = Maaslin2(input_data = df_input_data_genus, 
+                    input_metadata = df_input_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_genus_worms", 
+                    fixed_effects  = c("Pathology.Results", "Total.Worm.Count"))
+View(fit_data_genus_worms$results)
+
+#create new heatmap
+sig_worms <- subset(fit_data_genus_worms$results, qval < 0.25)
+#long format
+worms_heatmap_plot <- ggplot(sig_worms, aes(x = metadata, y = feature, fill = coef)) +
+  geom_tile() +  # Use geom_tile to create the heatmap
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white") +  # Adjust color gradient
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.background = element_rect(fill = "white"), # Optional: adjust theme
+   ) +
+  labs(x = "Worm Association", y = "Taxa", title = "Taxa Associated with Worm Presence and Burden")
+# Save the plot
+ggsave("worms_heatmap_plot_long.png", plot = worms_heatmap_plot, height = 6, width = 6, units = "in")
+
+# Wide format
+worms_heatmap_plot <- ggplot(sig_worms, aes(x = feature, y = metadata, fill = coef)) +
+  geom_tile() +  # Use geom_tile to create the heatmap
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white") +  # Adjust color gradient
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.background = element_rect(fill = "white"), # Optional: adjust theme
+    axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1)) +
+  labs(x = "Taxa", y = "Worm Associations", title = "Taxa Associated with Worm Presence and Burden")
+# Save the plot
+ggsave("worms_heatmap_plot_wide_0.05.png", plot = worms_heatmap_plot, height = 6, width = 16, units = "in")
+
+#extract names of significantly associated taxa
+sig_taxa <- subset(fit_data_genus_worms$results, qval < 0.25) %>%
+  subset(metadata == "Pathology.Results")
+sig_taxa_names <- as.list(sig_taxa$feature)
+#create new input dataframe
+df_positive_input_data_genus <- df_input_data_genus[, colnames(df_input_data_genus) %in% sig_taxa_names]
+```
+
+#All fish, Genus level, worms (association)
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_genus_count = Maaslin2(input_data = df_positive_input_data_genus, 
+                    input_metadata = df_positive_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_genus_count", 
+                    fixed_effects  = c("Total.Worm.Count"))
+View(fit_data_genus_count$results)
+```
+
+# All fish, only interaction, species level
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_all_worm_species = Maaslin2(input_data = df_input_data_species, 
+                    input_metadata = df_input_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_worm_species", 
+                    fixed_effects  = c("Strain_Treatment", "Total.Worm.Count"))
+View(fit_data_all_worm_species$results)
+```
+
+#All fish, Genus level, no interaction
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_all_genus_noint = Maaslin2(input_data = df_input_data_genus, 
+                    input_metadata = df_input_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_all_genus_noint", 
+                    fixed_effects  = c("Strain", "Treatment"))
+View(fit_data_all_genus_noint$results)
+```
+
+#All fish, Genus level, Treatment
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_all_genus_treat = Maaslin2(input_data = df_input_data_genus, 
+                    input_metadata = df_input_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_all_genus_treat", 
+                    fixed_effects  = c("Treatment"))
+View(fit_data_all_genus_treat$results)
+```
+
+#All fish, Genus level, Treatment and DPE
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_all_genus_treat_dpe = Maaslin2(input_data = df_input_data_genus, 
+                    input_metadata = df_input_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_all_genus_treat_dpe", 
+                    fixed_effects  = c("DPE", "Treatment"))
+View(fit_data_all_genus_treat_dpe$results)
+```
+
+# With only Exposed Fish, species level
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_exposed_species = Maaslin2(input_data     = df_input_data_species, 
+                    input_metadata = df_exposed_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_exposed_species", 
+                    fixed_effects  = c("Strain","Total.Worm.Count", "DPE"))
+View(fit_data_exposed_species$results)
+```
+
+# Exposed Fish, Genus Level
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_exposed_genus = Maaslin2(input_data   = df_input_data_genus, 
+                    input_metadata = df_exposed_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_exposed_genus", 
+                    fixed_effects  = c("Strain","Total.Worm.Count", "DPE"))
+View(fit_data_exposed_genus$results)
+```
+
+# Exposed Fish, Genus Level, Pathology
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_exposed_genus_pathology = Maaslin2(input_data   = df_input_data_genus, 
+                    input_metadata = df_exposed_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_exposed_genus_pathology", 
+                    fixed_effects  = c("Strain","Pathology.Results", "DPE"))
+View(fit_data_exposed_genus_pathology$results)
+```
+
+# With only Exposed Fish, species level, no worms
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_exposed_species_noworms = Maaslin2(input_data     = df_input_data_species, 
+                    input_metadata = df_exposed_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_exposed_species_noworms", 
+                    fixed_effects  = c("Strain", "DPE"))
+View(fit_data_exposed_species_noworms$results)
+```
+
+# Exposed Fish, Genus Level, no worms
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_exposed_genus_noworms = Maaslin2(input_data   = df_input_data_genus, 
+                    input_metadata = df_exposed_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_exposed_genus_noworms", 
+                    fixed_effects  = c("Strain", "DPE"))
+View(fit_data_exposed_genus_noworms$results)
+```
+
+# With only Exposed Fish, species level, only worms
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_exposed_species_onlyworms = Maaslin2(input_data     = df_input_data_species, 
+                    input_metadata = df_exposed_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_exposed_species_onlyworms", 
+                    fixed_effects  = c("Strain", "Total.Worm.Count"))
+View(fit_data_exposed_species_onlyworms$results)
+```
+
+# Exposed Fish, Genus Level, only worms
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_exposed_genus_onlyworms = Maaslin2(input_data   = df_input_data_genus, 
+                    input_metadata = df_exposed_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_exposed_genus_onlyworms", 
+                    fixed_effects  = c("Strain", "Total.Worm.Count"))
+View(fit_data_exposed_genus_onlyworms$results)
+```
+
+# Only Control Fish, species level
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_control_species = Maaslin2(input_data     = df_input_data_species, 
+                    input_metadata = df_control_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_control_species", 
+                    fixed_effects  = c("Strain", "DPE"))
+View(fit_data_control_species$results)
+```
+
+# Only control fish, Genus level
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_control_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_control_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_control_genus", 
+                    fixed_effects  = c("Strain", "DPE"))
+View(fit_data_control_genus$results)
+```
+
+
+# Only control fish, Genus level, just Strain
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+fit_data_control_genus_strain = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_control_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_control_genus_strain", 
+                    fixed_effects  = c("Strain"))
+View(fit_data_control_genus_strain$results)
+```
+
+# All fish, each strain separate by treatment
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+#5D
+fit_data_5D_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_5D_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_5D_genus", 
+                    fixed_effects  = c("Treatment"))
+
+#AB
+fit_data_AB_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_AB_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_AB_genus", 
+                    fixed_effects  = c("Treatment"))
+
+#Casper
+fit_data_Casper_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_Casper_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_Casper_genus", 
+                    fixed_effects  = c("Treatment"))
+
+#TU
+fit_data_TU_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_TU_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_TU_genus", 
+                    fixed_effects  = c("Treatment"))
+```
+#All fish, Separate strains, compile results
+```{r}
+# add strain back to dataframe and pull significant results
+fit_data_5D_genus$results$Strain <- "5D"
+fit_data_5D_genus$sig_results <- subset(fit_data_5D_genus$results, qval < 0.25)
+
+fit_data_AB_genus$results$Strain <- "AB"
+fit_data_AB_genus$sig_results <- subset(fit_data_AB_genus$results, qval < 0.25)
+
+fit_data_Casper_genus$results$Strain <- "Casper"
+fit_data_Casper_genus$sig_results <- subset(fit_data_Casper_genus$results, qval < 0.25)
+
+fit_data_TU_genus$results$Strain <- "TU"
+fit_data_TU_genus$sig_results <- subset(fit_data_TU_genus$results, qval < 0.25)
+
+#combine dataframes
+all_sig_results <- bind_rows(fit_data_5D_genus$sig_results, fit_data_AB_genus$sig_results, fit_data_Casper_genus$sig_results,fit_data_TU_genus$sig_results)
+#add column denoting significance
+#all_sig_results$significance <- ifelse(all_sig_results$qval)
+#View(all_sig_results)
+
+#count occurrences significant associations by strain
+all_sig_results %>%
+group_by(Strain) %>%
+  summarise(
+    Positive = sum(coef> 0),
+    Negative = sum(coef < 0)
+  )
+
+library(reshape2)
+
+# Convert to wide format for heatmap
+heatmap_data <- dcast(all_sig_results, feature ~ Strain, value.var = "coef")
+rownames(heatmap_data) <- heatmap_data$feature
+heatmap_data <- heatmap_data[, -1]  # Remove first column (feature)
+
+
+library(gplots)
+# Create heatmap
+taxa_heatmap <- heatmap.2(as.matrix(heatmap_data),
+          Rowv = FALSE, Colv = FALSE,      # Turn off row and column clustering
+          dendrogram = "none",             # Turn off dendrogram
+          trace = "none",                  # Turn off trace lines
+          margins = c(5, 20),              # Adjust margins
+          main = "(−log(qval)*sign(coeff))", # Title of the heatmap
+          key = TRUE,                      # Show color key
+          keysize = 1.0,                   # Size of color key
+          density.info = "none",           # Turn off density plot
+          symkey = TRUE,                   # Show symmetric key
+          col = colorRampPalette(c("red", "white", "blue")),        # Color palette
+          scale = "row",                   # Scale rows (optional)
+          cexCol = 0.8, cexRow = 0.8,      # Adjust text size
+          labRow = heatmap_data$feature,   # Row labels
+          labCol = colnames(heatmap_data)  # Column labels
+)
+
+#Using ggplot instead
+heatmap_plot <- ggplot(all_sig_results, aes(x = Strain, y = feature, fill = coef)) +
+  geom_tile() +  # Use geom_tile to create the heatmap
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white") +  # Adjust color gradient
+  theme(panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.background = element_rect(fill = "white")) +  # Optional: adjust theme
+  labs(x = "Strain", y = "Taxa", title = "Differentially Associated Taxa by Strain")  # Optional: add labels and title
+# Save the plot
+ggsave("diff_assoc_heatmap.png", plot = heatmap_plot, height = 10, width = 8, units = "in")
+
+# rotated for PPT
+heatmap_plot <- ggplot(all_sig_results, aes(x = feature, y = Strain, fill = coef)) +
+  geom_tile() +  # Use geom_tile to create the heatmap
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white") +  # Adjust color gradient
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.background = element_rect(fill = "white"), # Optional: adjust theme
+    axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1)) +
+  labs(x = "Taxa", y = "Strain", title = "Differentially Associated Taxa by Strain")
+# Save the plot
+ggsave("diff_assoc_heatmap_wide.png", plot = heatmap_plot, height = 6, width = 16, units = "in", path = path)
+```
+
+# Control fish, each strain separate by DPE
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+#Controls
+#5D
+fit_data_5D_DPE_control_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_5D_control_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_5D_DPE_control_genus", 
+                    fixed_effects  = c("DPE"))
+
+#AB
+fit_data_AB_DPE_control_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_AB_control_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_AB_DPE_control_genus", 
+                    fixed_effects  = c("DPE"))
+
+#Casper
+fit_data_Casper_DPE_control_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_Casper_control_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_Casper_DPE_control_genus", 
+                    fixed_effects  = c("DPE"))
+
+#TU
+fit_data_TU_DPE_control_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_TU_control_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_TU_DPE_control_genus", 
+                    fixed_effects  = c("DPE"))
+```
+#Control fish, Separate strains by DPE, compile results
+```{r}
+# add strain back to dataframe and pull significant results
+fit_data_5D_DPE_control_genus$results$Strain <- "5D"
+fit_data_5D_DPE_control_genus$sig_results <- subset(fit_data_5D_DPE_control_genus$results, qval < 0.25)
+
+fit_data_AB_DPE_control_genus$results$Strain <- "AB"
+fit_data_AB_DPE_control_genus$sig_results <- subset(fit_data_AB_DPE_control_genus$results, qval < 0.25)
+
+fit_data_Casper_DPE_control_genus$results$Strain <- "Casper"
+fit_data_Casper_DPE_control_genus$sig_results <- subset(fit_data_Casper_DPE_control_genus$results, qval < 0.25)
+
+fit_data_TU_DPE_control_genus$results$Strain <- "TU"
+fit_data_TU_DPE_control_genus$sig_results <- subset(fit_data_TU_DPE_control_genus$results, qval < 0.25)
+
+#combine dataframes
+DPE_control_sig_results <- bind_rows(fit_data_5D_DPE_control_genus$sig_results, fit_data_AB_DPE_control_genus$sig_results, fit_data_Casper_DPE_control_genus$sig_results,fit_data_TU_DPE_control_genus$sig_results)
+#add column denoting significance
+DPE_control_sig_results$significance <- ifelse(DPE_control_sig_results$qval) # haven't figured this out yet
+View(DPE_control_sig_results)
+
+#count occurrences significant associations by strain
+DPE_control_sig_results %>%
+group_by(Strain) %>%
+  summarise(
+    Positive = sum(coef> 0),
+    Negative = sum(coef < 0)
+  )
+
+library(reshape2)
+
+# Wide format
+DPE_control_heatmap_plot <- ggplot(DPE_control_sig_results, aes(x = feature, y = Strain, fill = coef)) +
+  geom_tile() +  # Use geom_tile to create the heatmap
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white") +  # Adjust color gradient
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.background = element_rect(fill = "white"), # Optional: adjust theme
+    axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1)) +
+  labs(x = "Taxa", y = "Strain", title = "Differentially Associated Taxa by Strain and DPE in Control fish")
+# Save the plot
+ggsave("diff_assoc_heatmap_DPE_control_wide.png", plot = DPE_control_heatmap_plot, height = 6, width = 16, units = "in")
+
+#long format
+DPE_control_heatmap_plot <- ggplot(DPE_control_sig_results, aes(x = Strain, y = feature, fill = coef)) +
+  geom_tile() +  # Use geom_tile to create the heatmap
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white") +  # Adjust color gradient
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.background = element_rect(fill = "white"), # Optional: adjust theme
+   ) +
+  labs(x = "Strain", y = "Taxa", title = "Differentially Associated Taxa by Strain and DPE in Control fish")
+# Save the plot
+ggsave("diff_assoc_heatmap_DPE_control_long.png", plot = DPE_control_heatmap_plot, height = 6, width = 6, units = "in")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Exposed fish, Separate strains, split by DPE
+```{r}
+#Exposed
+#5D
+fit_data_5D_DPE_exposed_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_5D_exposed_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_5D_DPE_exposed_genus", 
+                    fixed_effects  = c("DPE"))
+
+#AB
+fit_data_AB_DPE_exposed_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_AB_exposed_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_AB_DPE_exposed_genus", 
+                    fixed_effects  = c("DPE"))
+
+#Casper
+fit_data_Casper_DPE_exposed_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_Casper_exposed_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_Casper_DPE_exposed_genus", 
+                    fixed_effects  = c("DPE"))
+
+#TU
+fit_data_TU_DPE_exposed_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_TU_exposed_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_TU_DPE_exposed_genus", 
+                    fixed_effects  = c("DPE"))
+```
+#Exposed fish, Separate strains by DPE, compile results
+```{r}
+# add strain back to dataframe and pull significant results
+fit_data_5D_DPE_exposed_genus$results$Strain <- "5D"
+fit_data_5D_DPE_exposed_genus$sig_results <- subset(fit_data_5D_DPE_exposed_genus$results, qval < 0.25)
+
+fit_data_AB_DPE_exposed_genus$results$Strain <- "AB"
+fit_data_AB_DPE_exposed_genus$sig_results <- subset(fit_data_AB_DPE_exposed_genus$results, qval < 0.25)
+
+fit_data_Casper_DPE_exposed_genus$results$Strain <- "Casper"
+fit_data_Casper_DPE_exposed_genus$sig_results <- subset(fit_data_Casper_DPE_exposed_genus$results, qval < 0.25)
+
+fit_data_TU_DPE_exposed_genus$results$Strain <- "TU"
+fit_data_TU_DPE_exposed_genus$sig_results <- subset(fit_data_TU_DPE_exposed_genus$results, qval < 0.25)
+
+#combine dataframes
+DPE_exposed_sig_results <- bind_rows(fit_data_5D_DPE_exposed_genus$sig_results, fit_data_AB_DPE_exposed_genus$sig_results, fit_data_Casper_DPE_exposed_genus$sig_results,fit_data_TU_DPE_exposed_genus$sig_results)
+#add column denoting significance
+DPE_exposed_sig_results$significance <- ifelse(DPE_exposed_sig_results$qval)# havent figured this out yet
+View(DPE_exposed_sig_results)
+
+#count occurrences significant associations by strain
+DPE_exposed_sig_results %>%
+group_by(Strain) %>%
+  summarise(
+    Positive = sum(coef> 0),
+    Negative = sum(coef < 0)
+  )
+
+# Wide format
+DPE_exposed_heatmap_plot <- ggplot(DPE_exposed_sig_results, aes(x = feature, y = Strain, fill = coef)) +
+  geom_tile() +  # Use geom_tile to create the heatmap
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white") +  # Adjust color gradient
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.background = element_rect(fill = "white"), # Optional: adjust theme
+    axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1)) +
+  labs(x = "Taxa", y = "Strain", title = "Differentially Associated Taxa by Strain and DPE in Exposed fish")
+# Save the plot
+ggsave("diff_assoc_heatmap_DPE_exposed_wide.png", plot = DPE_exposed_heatmap_plot, height = 6, width = 16, units = "in")
+
+#long format
+DPE_exposed_heatmap_plot <- ggplot(DPE_exposed_sig_results, aes(x = Strain, y = feature, fill = coef)) +
+  geom_tile() +  # Use geom_tile to create the heatmap
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white") +  # Adjust color gradient
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.background = element_rect(fill = "white"), # Optional: adjust theme
+   ) +
+  labs(x = "Strain", y = "Taxa", title = "Differentially Associated Taxa by Strain and DPE in Exposed fish")
+# Save the plot
+ggsave("diff_assoc_heatmap_DPE_exposed_long.png", plot = DPE_exposed_heatmap_plot, height = 6, width = 6, units = "in")
+```
+
+
+
+
+
+
+
+
+
+# 31 DPE fish, each strain separate by Treatment
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+#Controls
+#5D
+fit_data_5D_DPE_31_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_5D_31_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_5D_DPE_31_genus", 
+                    fixed_effects  = c("Treatment"))
+
+#AB
+fit_data_AB_DPE_31_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_AB_31_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_AB_DPE_31_genus", 
+                    fixed_effects  = c("Treatment"))
+
+#Casper
+fit_data_Casper_DPE_31_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_Casper_31_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_Casper_DPE_31_genus", 
+                    fixed_effects  = c("Treatment"))
+
+#TU
+fit_data_TU_DPE_31_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_TU_31_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_TU_DPE_31_genus", 
+                    fixed_effects  = c("Treatment"))
+```
+
+#31 DPE fish, Separate strains by Treatment, compile results
+```{r}
+# add strain back to dataframe and pull significant results
+fit_data_5D_DPE_31_genus$results$Strain <- "5D"
+fit_data_5D_DPE_31_genus$sig_results <- subset(fit_data_5D_DPE_31_genus$results, qval < 0.25)
+
+fit_data_AB_DPE_31_genus$results$Strain <- "AB"
+fit_data_AB_DPE_31_genus$sig_results <- subset(fit_data_AB_DPE_31_genus$results, qval < 0.25)
+
+fit_data_Casper_DPE_31_genus$results$Strain <- "Casper"
+fit_data_Casper_DPE_31_genus$sig_results <- subset(fit_data_Casper_DPE_31_genus$results, qval < 0.25)
+
+fit_data_TU_DPE_31_genus$results$Strain <- "TU"
+fit_data_TU_DPE_31_genus$sig_results <- subset(fit_data_TU_DPE_31_genus$results, qval < 0.25)
+
+#combine dataframes
+DPE_31_sig_results <- bind_rows(fit_data_5D_DPE_31_genus$sig_results, fit_data_AB_DPE_31_genus$sig_results, fit_data_Casper_DPE_31_genus$sig_results,fit_data_TU_DPE_31_genus$sig_results)
+#add column denoting significance
+DPE_31_sig_results$significance <- ifelse(DPE_31_sig_results$qval) # haven't figured this out yet
+View(DPE_31_sig_results)
+
+#count occurrences significant associations by strain
+DPE_31_sig_results %>%
+group_by(Strain) %>%
+  summarise(
+    Positive = sum(coef> 0),
+    Negative = sum(coef < 0)
+  )
+
+library(reshape2)
+
+# Wide format
+DPE_31_heatmap_plot <- ggplot(DPE_31_sig_results, aes(x = feature, y = Strain, fill = coef)) +
+  geom_tile() +  # Use geom_tile to create the heatmap
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white") +  # Adjust color gradient
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.background = element_rect(fill = "white"), # Optional: adjust theme
+    axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1)) +
+  labs(x = "Taxa", y = "Strain", title = "Differentially Associated Taxa by Strain and Treatment in Fish 31 DPE")
+# Save the plot
+ggsave("diff_assoc_heatmap_DPE_31_wide.png", plot = DPE_31_heatmap_plot, height = 6, width = 16, units = "in")
+
+#long format
+DPE_31_heatmap_plot <- ggplot(DPE_31_sig_results, aes(x = Strain, y = feature, fill = coef)) +
+  geom_tile() +  # Use geom_tile to create the heatmap
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white") +  # Adjust color gradient
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.background = element_rect(fill = "white"), # Optional: adjust theme
+   ) +
+  labs(x = "Strain", y = "Taxa", title = "Differentially Associated Taxa by Strain and Treatment in Fish 31 DPE")
+# Save the plot
+ggsave("diff_assoc_heatmap_DPE_31_long.png", plot = DPE_31_heatmap_plot, height = 6, width = 6, units = "in")
+```
+
+# 44 DPE fish, each strain separate by Treatment
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+#Controls
+#5D
+fit_data_5D_DPE_44_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_5D_44_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_5D_DPE_44_genus", 
+                    fixed_effects  = c("Treatment"))
+
+#AB
+fit_data_AB_DPE_44_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_AB_44_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_AB_DPE_44_genus", 
+                    fixed_effects  = c("Treatment"))
+
+#Casper
+fit_data_Casper_DPE_44_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_Casper_44_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_Casper_DPE_44_genus", 
+                    fixed_effects  = c("Treatment"))
+
+#TU
+fit_data_TU_DPE_44_genus = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_TU_44_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_TU_DPE_44_genus", 
+                    fixed_effects  = c("Treatment"))
+```
+
+#44 DPE fish, Separate strains by Treatment, compile results
+```{r}
+# add strain back to dataframe and pull significant results
+fit_data_5D_DPE_44_genus$results$Strain <- "5D"
+fit_data_5D_DPE_44_genus$sig_results <- subset(fit_data_5D_DPE_44_genus$results, qval < 0.25)
+
+fit_data_AB_DPE_44_genus$results$Strain <- "AB"
+fit_data_AB_DPE_44_genus$sig_results <- subset(fit_data_AB_DPE_44_genus$results, qval < 0.25)
+
+fit_data_Casper_DPE_44_genus$results$Strain <- "Casper"
+fit_data_Casper_DPE_44_genus$sig_results <- subset(fit_data_Casper_DPE_44_genus$results, qval < 0.25)
+
+fit_data_TU_DPE_44_genus$results$Strain <- "TU"
+fit_data_TU_DPE_44_genus$sig_results <- subset(fit_data_TU_DPE_44_genus$results, qval < 0.25)
+
+#combine dataframes
+DPE_44_sig_results <- bind_rows(fit_data_5D_DPE_44_genus$sig_results, fit_data_AB_DPE_44_genus$sig_results, fit_data_Casper_DPE_44_genus$sig_results,fit_data_TU_DPE_44_genus$sig_results)
+#add column denoting significance
+DPE_44_sig_results$significance <- ifelse(DPE_44_sig_results$qval) # haven't figured this out yet
+View(DPE_44_sig_results)
+
+#count occurrences significant associations by strain
+DPE_44_sig_results %>%
+group_by(Strain) %>%
+  summarise(
+    Positive = sum(coef> 0),
+    Negative = sum(coef < 0)
+  )
+
+library(reshape2)
+
+# Wide format
+DPE_44_heatmap_plot <- ggplot(DPE_44_sig_results, aes(x = feature, y = Strain, fill = coef)) +
+  geom_tile() +  # Use geom_tile to create the heatmap
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white") +  # Adjust color gradient
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.background = element_rect(fill = "white"), # Optional: adjust theme
+    axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1)) +
+  labs(x = "Taxa", y = "Strain", title = "Differentially Associated Taxa by Strain and Treatment in Fish 44 DPE")
+# Save the plot
+ggsave("diff_assoc_heatmap_DPE_44_wide.png", plot = DPE_44_heatmap_plot, height = 6, width = 16, units = "in")
+
+#long format
+DPE_44_heatmap_plot <- ggplot(DPE_44_sig_results, aes(x = Strain, y = feature, fill = coef)) +
+  geom_tile() +  # Use geom_tile to create the heatmap
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white") +  # Adjust color gradient
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.background = element_rect(fill = "white"), # Optional: adjust theme
+   ) +
+  labs(x = "Strain", y = "Taxa", title = "Differentially Associated Taxa by Strain and Treatment in Fish 44 DPE")
+# Save the plot
+ggsave("diff_assoc_heatmap_DPE_44_long.png", plot = DPE_44_heatmap_plot, height = 6, width = 6, units = "in")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# All fish, Split by DPE and Strain
+```{r, message = FALSE, warning = FALSE, include = FALSE, results = hide}
+df_input_metadata$"Strain_Treatment_DPE" <- paste(df_input_metadata$Strain, df_input_metadata$Treatment, df_input_metadata$DPE, sep = "_")
+df_input_metadata$Strain_Treatment_DPE = factor(df_input_metadata$Strain_Treatment_DPE,
+                                              levels = c("AB_Control_Older", "AB_Control_Younger", "AB_Exposed_Older", "AB_Exposed_Younger",
+                                                         "5D_Control_Older", "5D_Control_Younger", "5D_Exposed_Older", "5D_Exposed_Younger", 
+                                                         "Casper_Control_Older", "Casper_Control_Younger", "Casper_Exposed_Older", "Casper_Exposed_Younger",
+                                                         "TU_Control_Older", "TU_Control_Younger", "TU_Exposed_Older", "TU_Exposed_Younger"))
+fit_data_all_genus_sta = Maaslin2(input_data     = df_input_data_genus, 
+                    input_metadata = df_input_metadata, 
+                    min_prevalence = 0,
+                    normalization  = "TSS",
+                    output         = "fish_output_all_genus_sta", 
+                    fixed_effects  = c("Strain_Treatment_DPE"))
+View(fit_data_all_genus_sta$results)
+```

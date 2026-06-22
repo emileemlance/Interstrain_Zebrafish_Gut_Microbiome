@@ -38,9 +38,11 @@ get_formula <- function(model) {
 }
 ```
 # Load the Phyloseq object
-The phyloseq object was created by following the DADA2 workflow. Documentation can be found here: ./Code/Analysis/Zebrafish DADA2.Rmd. Phyloseq object saved here: ./Data/ps_object.rds. For this workflow we will be looking only at the Control samples for all 4 strains of zebrafish (5D, AB, Casper & TU).
+The phyloseq object was created by following the DADA2 workflow. Documentation can be found here: ./Code/Zebrafish DADA2.Rmd. Phyloseq object saved here: ./Data/ps_object.rds. For this workflow we will be looking only at the Control samples for all 4 strains of zebrafish (5D, AB, Casper & TU).
 ```{r phyloseq object, tidy = TRUE}
 ps <- readRDS("C:/Users/emile/OneDrive - Oregon State University/Sharpton Lab/ZF_ISF__Emiliee_WI2024/Data/ps_object.rds")
+
+ps_exposed <- ps_filter(ps, Treatment == "Exposed")
 ```
 #Extract Sample Data
 # Extract Relevant Data
@@ -230,6 +232,14 @@ phys_tukey <- best_phys_lm %>%
   aov() %>%
   TukeyHSD()
 
+# Extract and combine all comparisons
+phys_tukey_df <- do.call(rbind, lapply(names(phys_tukey), function(term) {
+df <- as.data.frame(phys_tukey[[term]])
+df$comparison <- rownames(df)
+df$term <- term
+df
+}))
+
 phys_strain_pval_df <- phys_tukey_df %>%
  filter(term == "Strain") %>%
  rename(p.adj = `p adj`) %>% # Rename the column to avoid issues
@@ -313,8 +323,6 @@ column_spec(1:5, width = "100px")
 # with 5D as reference
 exposed_data$Strain<- relevel(exposed_data$Strain, ref = "5D")
 glm.nb(Total.Worm.Count ~ Strain + DPE, data = exposed_data) %>%
-     emmeans(pairwise ~ Strain) %>%
-     pairs(adjust = "tukey") %>%
      summary()
 
 # with AB as reference
@@ -361,6 +369,14 @@ burden_tukey <- burden_lm %>%
   aov() %>%
   TukeyHSD()
 
+# Extract and combine all comparisons
+burden_tukey_df <- do.call(rbind, lapply(names(burden_tukey), function(term) {
+df <- as.data.frame(burden_tukey[[term]])
+df$comparison <- rownames(df)
+df$term <- term
+df
+}))
+
 burden_strain_pval_df <- burden_tukey_df %>%
  filter(term == "Strain") %>%
  rename(p.adj = `p adj`) %>% # Rename the column to avoid issues
@@ -375,16 +391,6 @@ y.position = max(sam_data$shannon_Genus, na.rm = TRUE) + seq(0.1, 0.5, length.ou
  TRUE ~ "ns"
  )
 )
-
-
-
-# Extract and combine all comparisons
-burden_tukey_df <- do.call(rbind, lapply(names(burden_tukey), function(term) {
-df <- as.data.frame(burden_tukey[[term]])
-df$comparison <- rownames(df)
-df$term <- term
-df
-}))
 
 
 burden_strain_pval_df <- burden_tukey_df %>%
@@ -1009,7 +1015,7 @@ bdisp_exp <- ps %>%
 ## Strain Effects
 ```{r}
 #alpha diversity
-anova(best_lm)
+anova(shannon_lm)
 #Tukey Post-hoc test without Weight
 lm(formula = shannon_Genus ~ Strain + Treatment + DPE + Treatment:DPE, data = sam_data) %>%
   aov() %>%
@@ -1051,7 +1057,7 @@ bdisp_all$Strain$tukeyHSD$group
 ## Treatment Effects
 ```{r}
 #alpha diversity
-anova(best_lm)
+anova(shannon_lm)
 #Tukey Post-hoc test
 lm(formula = shannon_Genus ~ Strain +Treatment + DPE + Treatment:DPE, data = sam_data) %>%
   aov() %>%
@@ -1092,9 +1098,9 @@ bdisp_all$Treatment$tukeyHSD$group
 ## Other Effects
 ```{r}
 #alpha diversity
-anova(best_lm)
+anova(shannon_lm)
 ## Alpha Diversity differs by DPE (ANOVA, P=0.06544), and the interaction between Treatment and DPE (ANOVA, P=0.07436).
-summary(best_lm)
+summary(shannon_lm)
 ## Mean alpha diversity scores differ in their relationship to DPE between the control and exposed groups with fish in the exposed group having higher mean alpha diversity scores at 44 DPE and fish in the control group having higher mean alpha diversity scores at 31 DPE (ANOVA, P=0.0744).
 
 #beta diversity
