@@ -163,6 +163,28 @@ strain_pathology_weight_boxplot
 ggsave(file = "strain_pathology_weight_boxplot.svg", plot = strain_pathology_weight_boxplot,width = 3.5, height =3, path=path)
 
 # Weight by strain and pathology results with conditional fill per treatment
+# Format significance indicators
+
+weight_by_path_df <- pairs_df %>%
+  separate(contrast, into = c("group1", "group2"), sep = " - ") %>%
+  mutate(
+    p.label = case_when(
+      p.value <= 0.001 ~ "***",
+      p.value <= 0.01  ~ "**",
+      p.value <= 0.05  ~ "*",
+      TRUE ~ "ns"
+    )
+  )
+
+
+weight_by_path_df <- weight_by_path_df %>%
+  group_by(Strain) %>%
+  mutate(
+    y.position = max(sam_data$Weight_mg, na.rm = TRUE) +
+                 seq(1, 2, length.out = n())  # only a couple comparisons
+  ) %>%
+  ungroup()
+
 # Figure 1A
 strain_pathology_weight_boxplot_2 <- ps@sam_data %>%
   as.data.frame() %>%
@@ -233,9 +255,20 @@ strain_pathology_weight_boxplot_2 <- ps@sam_data %>%
   theme_bw() +
   facet_wrap(vars(Strain), ncol = 4) +
   theme(custom_theme) +
-  labs(y = "Weight (mg)", x = "Pathology Results")
+  labs(y = "Weight (mg)", x = "Pathology Results") +
+  stat_pvalue_manual(
+    weight_by_path_df,
+    label = "p.label",
+    xmin = "group1",
+    xmax = "group2",
+    y.position = "y.position",
+    tip.length = 0.01,
+    size = 2.5
+  )
+
+
 strain_pathology_weight_boxplot_2
-ggsave(file = "strain_pathology_weight_boxplot_2.svg", plot = strain_pathology_weight_boxplot_2,width = 7, height =4.5, path=path)
+ggsave(file = "strain_pathology_weight_boxplot_2.svg", plot = strain_pathology_weight_boxplot_2,width = 7, height =4, path=path)
 
 #Worm burden of exposed fish by strain
 # Figure 1B

@@ -267,6 +267,23 @@ phys_strain_tukey_table <- phys_strain_pval_df %>%
   kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
 column_spec(1:5, width = "100px")
 
+# Post hoc test for weight differences within strains between pathology outcomes
+path_weight_lm <- lm(Weight_mg ~ Strain * Pathology.Results, data = sam_data)
+
+# ANOVA
+anova(path_weight_lm)
+
+# Post-hoc (strain differences within pathology)
+path_by_strain <- emmeans(path_weight_lm, ~ Pathology.Results | Strain)
+
+strain_posthoc <- pairs(path_by_strain, adjust = "tukey")
+
+summary(strain_posthoc)
+
+pairs_df <- as.data.frame(pairs(path_by_strain, adjust = "tukey"))
+
+
+
 #Pathology
 #infection prevalence
 prevalence_results <- sam_data %>%
