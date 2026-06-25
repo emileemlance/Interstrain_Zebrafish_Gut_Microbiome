@@ -42,6 +42,10 @@ The phyloseq object was created by following the DADA2 workflow. Documentation c
 ```{r phyloseq object, tidy = TRUE}
 ps <- readRDS("C:/Users/emile/OneDrive - Oregon State University/Sharpton Lab/ZF_ISF__Emiliee_WI2024/Data/ps_object.rds")
 
+#change Infection.Status to Infection.Status
+colnames(sample_data(ps))[colnames(sample_data(ps)) == "Infection.Status"] <- "Infection.Status"
+
+
 ps_exposed <- ps_filter(ps, Treatment == "Exposed")
 ```
 #Extract Sample Data
@@ -63,7 +67,7 @@ sam_data <- column_to_rownames(sam_data, var = colnames(sam_data)[1])
 #convert Strain to factor
 sam_data$Strain <- as.factor(sam_data$Strain)
 #add binomial pathology results
-sam_data$Pathology.Results.b <- ifelse(sam_data$Pathology.Results == "positive", 1, 0)
+sam_data$Infection.Status.b <- ifelse(sam_data$Infection.Status == "positive", 1, 0)
 #normality for weight
 #bestNormalize(sam_data$Weight_mg) #no normalization
 #normality for shannon diversity
@@ -104,14 +108,14 @@ exposed_data <- subset(sam_data, Treatment == "Exposed")
 
 # Model Selection
 ## Physiology
-Variables to consider: Strain, Sex, and Pathology.Results.
+Variables to consider: Strain, Sex, and Infection.Status.
 ```{r}
 #create full model for selection
-full_phys_lm <- lm(Weight_mg ~ Strain + Sex + Pathology.Results +Strain*Sex +Strain*Pathology.Results +Sex*Pathology.Results, data = sam_data)
+full_phys_lm <- lm(Weight_mg ~ Strain + Sex + Infection.Status +Strain*Sex +Strain*Infection.Status +Sex*Infection.Status, data = sam_data)
 #perform model selection
 step(full_phys_lm, direction = "both")
 #create new model based on selection results
-best_phys_lm <- lm(formula = Weight_mg ~ Strain + Sex + Pathology.Results +Strain*Sex, data = sam_data)
+best_phys_lm <- lm(formula = Weight_mg ~ Strain + Sex + Infection.Status +Strain*Sex, data = sam_data)
 #run analysis of variance
 anova(best_phys_lm)
 #summary statistics
@@ -121,7 +125,7 @@ summary(best_phys_lm)
 Variables to consider: Strain, Treatment, DPE, Sex, Weight_mg, Pathology.Result, and Total.Worm.Count.
 ```{r}
 #create shannon diversity full model for selection
-full_lm <- lm(arcsinh_shannon_Genus ~ Strain + Treatment + DPE + Sex + Weight_mg + Pathology.Results + Total.Worm.Count + Strain*Treatment + Strain*DPE + Treatment* DPE + Strain*Treatment*DPE, data = sam_data)
+full_lm <- lm(arcsinh_shannon_Genus ~ Strain + Treatment + DPE + Sex + Weight_mg + Infection.Status + Total.Worm.Count + Strain*Treatment + Strain*DPE + Treatment* DPE + Strain*Treatment*DPE, data = sam_data)
 #perform model selection
 step(full_lm, direction = "both", scope = list(lower = arcsinh_shannon_Genus ~ Strain + Treatment, upper = full_lm))
 #create new model based on selection results
@@ -136,7 +140,7 @@ shannon_control_lm <- lm(formula = shannon_Genus ~ Strain, data = control_data)
 shannon_exposed_lm <- lm(formula = shannon_Genus ~ Strain, data = exposed_data)
 
 #create observed richness full model for selection
-full_lm <- lm(sqrt_observed_Genus ~ Strain + Treatment + DPE + Sex + Weight_mg + Pathology.Results + Total.Worm.Count + Strain*Treatment + Strain*DPE + Treatment* DPE + Strain*Treatment*DPE, data = sam_data)
+full_lm <- lm(sqrt_observed_Genus ~ Strain + Treatment + DPE + Sex + Weight_mg + Infection.Status + Total.Worm.Count + Strain*Treatment + Strain*DPE + Treatment* DPE + Strain*Treatment*DPE, data = sam_data)
 #perform model selection
 step(full_lm, direction = "both", scope = list(lower = sqrt_observed_Genus ~ Strain + Treatment, upper = full_lm))
 #create new model based on selection results
@@ -164,7 +168,7 @@ otu_matrix <- as(otu_table, "matrix")
 #calculate Bray-Curtis dissimilarity matrix
 dist_matrix <- vegdist(otu_matrix, method = "bray")
 #create full model for selection
-full_cap <- capscale(dist_matrix ~ Strain + Treatment + DPE + Sex + Weight_mg + Pathology.Results + Total.Worm.Count + Strain*Treatment + Strain*DPE + Treatment* DPE + Strain*Treatment*DPE, data = sam_data)
+full_cap <- capscale(dist_matrix ~ Strain + Treatment + DPE + Sex + Weight_mg + Infection.Status + Total.Worm.Count + Strain*Treatment + Strain*DPE + Treatment* DPE + Strain*Treatment*DPE, data = sam_data)
 #perform stepwise selection
 ordistep(full_cap, direction = "both")
 #create new model based on model selection results
@@ -181,7 +185,7 @@ best_cap$CA$eig / sum(best_cap$CA$eig)
 #Weight by treatment
 wilcox.test(Weight_mg ~ Treatment, data =sam_data)
 #Weight by pathology results
-wilcox.test(Weight_mg ~Pathology.Results, data =sam_data)
+wilcox.test(Weight_mg ~Infection.Status, data =sam_data)
 
 #Weight for control
 kruskal.test(Weight_mg ~ Strain, data = control_data)
@@ -206,7 +210,7 @@ wilcox.test(Weight_mg ~ DPE, data =control_data)
 # Create Summary Table for best model
 phys_table <- anova(best_phys_lm) %>%
   kbl(
-    caption = "Weight ~ Intercept + Strain + Sex + Pathology.Results +Strain*Sex",
+    caption = "Weight ~ Intercept + Strain + Sex + Infection.Status +Strain*Sex",
     digits = 3,
     align = "c",
     col.names = c("Df", "Sum Sq", "Mean Sq", "F value", "Pr(>F)")
@@ -216,14 +220,14 @@ phys_table <- anova(best_phys_lm) %>%
   kable_styling(position = "center", bootstrap_options = c("striped", "hover", "condensed"), font_size = 14) %>%
 column_spec(1:5, width = "100px")
 
-anova(lm(Weight_mg ~ Strain + Pathology.Results + Strain*Pathology.Results, data = sam_data))
+anova(lm(Weight_mg ~ Strain + Infection.Status + Strain*Infection.Status, data = sam_data))
 
 anova(lm(Weight_mg ~ Strain + Treatment + Strain*Treatment, data = sam_data))
 
-anova(lm(Weight_mg ~ Strain + Pathology.Results + Sex, data = sam_data))
+anova(lm(Weight_mg ~ Strain + Infection.Status + Sex, data = sam_data))
 
 
-lm(Weight_mg ~ Strain + Pathology.Results + Strain*Pathology.Results, data = sam_data) %>%
+lm(Weight_mg ~ Strain + Infection.Status + Strain*Infection.Status, data = sam_data) %>%
   aov() %>%
   TukeyHSD()
 
@@ -268,13 +272,13 @@ phys_strain_tukey_table <- phys_strain_pval_df %>%
 column_spec(1:5, width = "100px")
 
 # Post hoc test for weight differences within strains between pathology outcomes
-path_weight_lm <- lm(Weight_mg ~ Strain * Pathology.Results, data = sam_data)
+path_weight_lm <- lm(Weight_mg ~ Strain * Infection.Status, data = sam_data)
 
 # ANOVA
 anova(path_weight_lm)
 
 # Post-hoc (strain differences within pathology)
-path_by_strain <- emmeans(path_weight_lm, ~ Pathology.Results | Strain)
+path_by_strain <- emmeans(path_weight_lm, ~ Infection.Status | Strain)
 
 strain_posthoc <- pairs(path_by_strain, adjust = "tukey")
 
@@ -291,7 +295,7 @@ prevalence_results <- sam_data %>%
   group_by(Strain) %>%
   summarise(
     Total_Exposed = n(),
-    Positive_Count = sum(Pathology.Results == "positive"),
+    Positive_Count = sum(Infection.Status == "positive"),
     Percent_Positive = (Positive_Count / Total_Exposed) * 100
   )
 
@@ -310,17 +314,17 @@ column_spec(1:4, width = "100px")
 
 #by strain
 sam_data$Strain <- relevel(sam_data$Strain, ref = "AB")
-pathology_model <- lm(Pathology.Results.b ~ Strain, data = exposed_data, family = binomial())
+pathology_model <- lm(Infection.Status.b ~ Strain, data = exposed_data, family = binomial())
 summary(pathology_model)
 anova(pathology_model)
 posthoc <- glht(pathology_model, linfct = mcp(Strain = "Tukey"))
 summary(posthoc)
 #now by sex
-pathology_model <- lm(Pathology.Results.b ~ Sex, data = exposed_data, family = binomial())
+pathology_model <- lm(Infection.Status.b ~ Sex, data = exposed_data, family = binomial())
 summary(pathology_model)
 anova(pathology_model)
 # and both
-pathology_model <- lm(Pathology.Results.b ~ Strain + Sex, data = exposed_data, family = binomial())
+pathology_model <- lm(Infection.Status.b ~ Strain + Sex, data = exposed_data, family = binomial())
 
 # Create Summary Table for pathology model
 pathology_table <- anova(pathology_model) %>%

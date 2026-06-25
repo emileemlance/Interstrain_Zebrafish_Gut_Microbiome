@@ -234,6 +234,9 @@ ps <- ps %>%
 View(ps@tax_table)
 nrow(ps@tax_table)
 
+#change Infection.Status to Infection.Status
+colnames(sample_data(ps))[colnames(sample_data(ps)) == "Infection.Status"] <- "Infection.Status"
+
 # save the object for future use
 saveRDS(ps, file = "C:/Users/emile/Documents/OSU/Sharpton Lab/ZF_ISF__Emiliee_WI2024/Data/ps_object.rds")
 ```

@@ -45,10 +45,10 @@ ps@sam_data$FillGroup <- ifelse(
 ps@sam_data$FillGroup2 <- with(
   ps@sam_data,
   ifelse(
-    Pathology.Results == "positive",
+    Infection.Status == "positive",
     as.character(Strain),   # always filled
     ifelse(
-      Pathology.Results == "negative" & FillGroup != "Control",
+      Infection.Status == "negative" & FillGroup != "Control",
       as.character(Strain), # exposed-negative filled
       "Control"             # control-negative unfilled
     )
@@ -156,7 +156,7 @@ strain_pathology_weight_boxplot <- ps@sam_data %>%
   ) +
 
   theme_bw() +
-  facet_wrap(vars(Pathology.Results)) +
+  facet_wrap(vars(Infection.Status)) +
   theme(custom_theme) +
   labs(y = "Weight (mg)")
 strain_pathology_weight_boxplot
@@ -185,10 +185,10 @@ weight_by_path_df <- weight_by_path_df %>%
   ) %>%
   ungroup()
 
-# Figure 1A
+# Figure 2C
 strain_pathology_weight_boxplot_2 <- ps@sam_data %>%
   as.data.frame() %>%
-  ggplot(aes(y = Weight_mg, x = Pathology.Results)) +
+  ggplot(aes(y = Weight_mg, x = Infection.Status)) +
 
   # Boxplot outlines by strain
   geom_boxplot(
@@ -255,7 +255,7 @@ strain_pathology_weight_boxplot_2 <- ps@sam_data %>%
   theme_bw() +
   facet_wrap(vars(Strain), ncol = 4) +
   theme(custom_theme) +
-  labs(y = "Weight (mg)", x = "Pathology Results") +
+  labs(y = "Weight (mg)", x = "Infection Status") +
   stat_pvalue_manual(
     weight_by_path_df,
     label = "p.label",
@@ -271,7 +271,7 @@ strain_pathology_weight_boxplot_2
 ggsave(file = "strain_pathology_weight_boxplot_2.svg", plot = strain_pathology_weight_boxplot_2,width = 7, height =4, path=path)
 
 #Worm burden of exposed fish by strain
-# Figure 1B
+# Figure 2A
 worm_burden_by_strain<- ps_exposed@sam_data %>%
      ggplot(aes(y = Total.Worm.Count, x = Strain)) +
      geom_boxplot(width = 0.7, aes(color = Strain), outlier.shape = NA) +
@@ -300,7 +300,7 @@ ggsave(file = "worm_burden_by_strain.svg", plot = worm_burden_by_strain,width = 
 
 
 # Worm burden of exposed fish by DPE
-# Figure 1C
+# Figure 2B
 worm_burden_by_dpe<- ps_exposed@sam_data %>%
      ggplot(aes(y = Total.Worm.Count, x = DPE)) +
      geom_boxplot(width = 0.7,  outlier.shape = NA) +
@@ -437,7 +437,7 @@ ps_control_long <- ps %>%
                          "observed_Genus" = "# Observed Genera"))
 
 #Alpha Diversity plots For Just Control Samples
-# Figure 2A
+# Figure 3A
 strain_alpha_control_boxplot <- ps_control_long %>%
   ggplot(aes(y = Value, x = Strain)) +
   
@@ -532,7 +532,7 @@ ps_exposed_long <- ps %>%
 
 
 #Alpha Diversity plots For Just exposed Samples
-# Figure 2B
+# Figure 3B
 strain_alpha_exposed_boxplot <- ps_exposed_long %>%
   ggplot(aes(y = Value, x = Strain)) +
   
@@ -623,7 +623,7 @@ strain_alpha_exposed_boxplot <- ps_exposed_long %>%
 ggsave(file = "strain_alpha_exposed_boxplot.svg", plot = strain_alpha_exposed_boxplot,width = 4.5, height = 3.5, path=path)
 
 #facet wrapped boxplots for treatments showing both alpha metrics
-# Figure 3A
+# Figure 4A
 treatment_boxplot <- ggplot(ps_long, aes(x = Treatment, y = Value)) +
   
   geom_boxplot(
@@ -684,7 +684,7 @@ treatment_boxplot <- ggplot(ps_long, aes(x = Treatment, y = Value)) +
   theme_bw() +
   facet_wrap(~ Metric, scales = "free_y") +
   theme(custom_theme) +
-  labs(y = "Alpha Diversity Metric Value") +
+  labs(y = "Alpha Diversity Metric Value", x = "Exposure Group") +
   
   stat_pvalue_manual(
     alpha_treatment_pval_df,
@@ -804,7 +804,7 @@ ggsave(file = "observed_worm_plot.svg", plot = observed_worm_plot,width = 4.75, 
 #Beta Diversity
 ```{r}
 # PCoA with just control samples
-# Figure 2D
+# Figure 3D
 pcoa_control <- ps %>%
   ps_filter(Treatment == "Control") %>%
   tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
@@ -902,7 +902,7 @@ pcoa_all <- ps %>%
 ggsave(file = "pcoa_all.svg", , plot = pcoa_all, height = 3.5, width = 3.5, path = path)
 
 #PCoA plot with ellipses for Treatment dispersion
-# Figure 2C
+# Figure 3C
 pcoa_all_treatment <- ps %>%
   tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
   tax_agg(rank = "Genus") %>%
@@ -1041,7 +1041,7 @@ supplemental_pcoa_all <- pcoa_all <- ps %>%
 ggsave(file = "supplemental_pcoa_all.svg", , plot = supplemental_pcoa_all, height = 4, width = 5, path = path)
 
 #without strain colors, with fill by worm burden
-# Figure 3C
+# Figure 4C
 pcoa_wormburden <- ps %>%
   tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
   tax_agg(rank = "Genus") %>%
@@ -1088,7 +1088,7 @@ pcoa_wormburden <- ps %>%
 ggsave(file = "pcoa_wormburden.svg", , plot = pcoa_wormburden, height = 3.5, width = 5, path = path)
 
 #add DPE shapes
-# Figure 3B
+# Figure 4B
 pcoa_dpe <- ps %>%
   tax_filter(min_prevalence = 2.5 / 100, verbose = FALSE) %>%
   tax_agg(rank = "Genus") %>%
@@ -1311,7 +1311,7 @@ heatmap_plot_tax <- ggplot(all_sig_results_tax, aes(x = Strain, y = feature, fil
 
 
 # Save the plot
-# Figure 3C
+# Figure 5
 ggsave("diff_assoc_heatmap_tax.svg", plot = heatmap_plot_tax, height = 7.5, width = 6.5, units = "in", path = path)
 
 
